@@ -1,0 +1,22 @@
+{
+  "name": "@thankful/container",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && tsc-alias -p tsconfig.json",
+    "dev": "tsc -w",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@thankful/shared": "workspace:*",
+    "@thankful/database": "workspace:*",
+    "@thankful/events": "workspace:*",
+    "mongodb": "^6.3.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "tsc-alias": "^1.8.10"
+  }
+}

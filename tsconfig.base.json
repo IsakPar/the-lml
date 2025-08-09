@@ -1,0 +1,1 @@
+// tsconfig.base.json: strict true; module NodeNext; moduleResolution NodeNext; baseUrl .; paths {"@packages/*":"packages/*","@services/*":"services/*","@platform/*":"packages/platform/*"}

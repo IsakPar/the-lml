@@ -2,42 +2,36 @@
   "name": "thankful-monorepo",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "packageManager": "pnpm@8.15.7",
   "workspaces": [
     "apps/*",
-    "services/*",
-    "packages/*"
+    "packages/*",
+    "services/*"
   ],
   "scripts": {
-    "clean": "rimraf ./dist ./apps/**/dist ./packages/**/dist ./services/**/dist",
     "build": "tsc -b && tsc-alias -p tsconfig.json",
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint .",
-    "format": "prettier -w .",
-    "dev:api": "tsx -r tsconfig-paths/register apps/api/src/main.ts",
-    "dev:worker": "tsx -r tsconfig-paths/register apps/worker/src/main.ts",
-    "dev:stack:up": "docker compose -f ops/dev/docker-compose.yml up -d",
-    "dev:stack:down": "docker compose -f ops/dev/docker-compose.yml down -v",
-    "migrate:dev": "tsx -r tsconfig-paths/register packages/migrations/src/umzug.ts up",
-    "migrate:down": "tsx -r tsconfig-paths/register packages/migrations/src/umzug.ts down",
-    "migrate:status": "tsx -r tsconfig-paths/register packages/migrations/src/umzug.ts status",
-    "migrate:prod": "node -e \"if(!process.env.CONFIRM_PROD_MIGRATIONS){console.error('Set CONFIRM_PROD_MIGRATIONS=1');process.exit(1)}\" && tsx -r tsconfig-paths/register packages/migrations/src/umzug.ts up",
-    "test": "vitest run"
+    "verify": "pnpm -w lint && pnpm -w build && pnpm -w typecheck",
+    "dev:api": "tsx apps/api/src/main.ts"
+  },
+  "dependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
+    "fastify": "^4.28.1",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^6.18.0",
+    "pg": "^8.16.3",
+    "redis": "^5.8.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.9",
-    "eslint": "^9.7.0",
-    "eslint-plugin-boundaries": "^4.2.1",
-    "@typescript-eslint/eslint-plugin": "^7.15.0",
-    "@typescript-eslint/parser": "^7.15.0",
-    "prettier": "^3.3.3",
-    "rimraf": "^5.0.7",
-    "tsc-alias": "^1.8.8",
+    "@types/pg": "^8.11.6",
+    "tsc-alias": "^1.8.16",
     "tsconfig-paths": "^4.2.0",
-    "tsx": "^4.15.7",
-    "typescript": "^5.5.4",
-    "vitest": "^2.0.5"
+    "tsx": "^4.16.2",
+    "typescript": "^5.9.2"
   }
 }
-

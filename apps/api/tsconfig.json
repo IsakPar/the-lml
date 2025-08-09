@@ -12,7 +12,10 @@
   },
   "include": ["src"],
   "references": [
-    { "path": "../../packages/platform/api" }
+    { "path": "../../packages/platform/api" },
+    { "path": "../../services/inventory" },
+    { "path": "../../packages/idempotency" },
+    { "path": "../../packages/metrics" }
   ]
 }
 

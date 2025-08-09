@@ -8,6 +8,16 @@
     { "path": "packages/migrations" },
     { "path": "packages/idempotency" },
     { "path": "packages/ratelimit" },
+    { "path": "packages/shared" },
+    { "path": "packages/events" },
+    { "path": "packages/database" },
+    { "path": "packages/container" },
+    { "path": "services/identity" },
+    { "path": "services/ticketing" },
+    { "path": "services/payments" },
+    { "path": "services/venues" },
+    { "path": "services/inventory" },
+    { "path": "services/verification" },
     { "path": "apps/api" },
     { "path": "apps/worker" }
   ],
@@ -23,6 +33,13 @@
     "skipLibCheck": true,
     "strict": true,
     "baseUrl": ".",
+    "paths": {
+      "@thankful/metrics": ["packages/metrics/src/index.ts"],
+      "@thankful/shared": ["packages/shared/src/index.ts"],
+      "@thankful/events": ["packages/events/src/index.ts"],
+      "@thankful/database": ["packages/database/src/index.ts"],
+      "@thankful/container": ["packages/container/src/index.ts"]
+    },
     "outDir": "./dist"
   }
 }

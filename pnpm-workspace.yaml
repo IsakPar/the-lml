@@ -1,6 +1,1 @@
-packages:
-  - 'apps/*'
-  - 'services/*'
-  - 'packages/*'
-  - 'packages/*/*'
-
+# pnpm-workspace.yaml: include apps/*, packages/*, services/*

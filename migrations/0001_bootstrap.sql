@@ -1,0 +1,4 @@
+-- Create schemas: identity, catalog, inventory, orders, payments.
+-- Example: identity.users (id uuid pk, tenant_id uuid not null, email text, created_at timestamptz default now(), updated_at timestamptz default now()).
+-- Enable RLS and add tenant isolation policy using current_setting('app.tenant_id').
+-- Required extensions: uuid-ossp or pgcrypto for UUIDs; rationale: consistent UUID generation.

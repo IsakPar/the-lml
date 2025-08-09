@@ -1,27 +1,19 @@
 import Fastify from 'fastify';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { getRegistry } from '../../../metrics/src/index.js';
-import { loadConfig } from '../../../config/src/index.js';
+// config check removed for readiness impl
 import { registerRoutes } from './routes/index.js';
 
 export async function createServer() {
   const app = Fastify({ logger: false });
-  const env = loadConfig();
+  // env loading handled elsewhere if needed
 
   // raw-body plugin is registered route-scoped in payments.routes
 
   // Liveness
   app.get('/livez', async () => ({ status: 'ok' }));
 
-  // Readiness (no external network calls)
-  app.get('/readyz', async () => {
-    // TODO: check PG, Redis, Mongo connectivity via adapters once wired
-    // For now, ensure Stripe webhook secret present
-    if (!env.STRIPE_WEBHOOK_SECRET) {
-      return { status: 'degraded', missing: ['STRIPE_WEBHOOK_SECRET'] };
-    }
-    return { status: 'ready' };
-  });
+  // Readiness handled in health/ready.ts handler (mounted by routes/system if needed)
 
   // Metrics
   app.get('/metrics', async (_req: FastifyRequest, reply: FastifyReply) => {

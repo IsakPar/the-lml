@@ -1,0 +1,986 @@
+{
+  "seatmap_id": "smap_demo_50",
+  "venue_id": "venue_demo_50",
+  "version": "v1",
+  "name": "Generated 50 seats",
+  "venue_dimensions": {
+    "width": 1000,
+    "height": 600,
+    "units": "px",
+    "scale_factor": 1
+  },
+  "sections": [
+    {
+      "id": "A",
+      "name": "Section A",
+      "type": "reserved",
+      "position": {
+        "x": 0,
+        "y": 0,
+        "width": 100,
+        "height": 100,
+        "rotation": 0
+      },
+      "display": {
+        "color": "#cccccc",
+        "text_color": "#000000",
+        "border_color": "#333333",
+        "opacity": 1,
+        "display_order": 1
+      },
+      "capacity": 50,
+      "seats": [
+        {
+          "id": "A-101-1",
+          "row": "101",
+          "number": 1,
+          "coordinates": {
+            "x": 10,
+            "y": 10,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-101-2",
+          "row": "101",
+          "number": 2,
+          "coordinates": {
+            "x": 20,
+            "y": 10,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-101-3",
+          "row": "101",
+          "number": 3,
+          "coordinates": {
+            "x": 30,
+            "y": 10,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-101-4",
+          "row": "101",
+          "number": 4,
+          "coordinates": {
+            "x": 40,
+            "y": 10,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-101-5",
+          "row": "101",
+          "number": 5,
+          "coordinates": {
+            "x": 50,
+            "y": 10,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-101-6",
+          "row": "101",
+          "number": 6,
+          "coordinates": {
+            "x": 60,
+            "y": 10,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-101-7",
+          "row": "101",
+          "number": 7,
+          "coordinates": {
+            "x": 70,
+            "y": 10,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-101-8",
+          "row": "101",
+          "number": 8,
+          "coordinates": {
+            "x": 80,
+            "y": 10,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-101-9",
+          "row": "101",
+          "number": 9,
+          "coordinates": {
+            "x": 90,
+            "y": 10,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-101-10",
+          "row": "101",
+          "number": 10,
+          "coordinates": {
+            "x": 100,
+            "y": 10,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-102-1",
+          "row": "102",
+          "number": 1,
+          "coordinates": {
+            "x": 10,
+            "y": 20,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-102-2",
+          "row": "102",
+          "number": 2,
+          "coordinates": {
+            "x": 20,
+            "y": 20,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-102-3",
+          "row": "102",
+          "number": 3,
+          "coordinates": {
+            "x": 30,
+            "y": 20,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-102-4",
+          "row": "102",
+          "number": 4,
+          "coordinates": {
+            "x": 40,
+            "y": 20,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-102-5",
+          "row": "102",
+          "number": 5,
+          "coordinates": {
+            "x": 50,
+            "y": 20,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-102-6",
+          "row": "102",
+          "number": 6,
+          "coordinates": {
+            "x": 60,
+            "y": 20,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-102-7",
+          "row": "102",
+          "number": 7,
+          "coordinates": {
+            "x": 70,
+            "y": 20,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-102-8",
+          "row": "102",
+          "number": 8,
+          "coordinates": {
+            "x": 80,
+            "y": 20,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-102-9",
+          "row": "102",
+          "number": 9,
+          "coordinates": {
+            "x": 90,
+            "y": 20,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-102-10",
+          "row": "102",
+          "number": 10,
+          "coordinates": {
+            "x": 100,
+            "y": 20,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-103-1",
+          "row": "103",
+          "number": 1,
+          "coordinates": {
+            "x": 10,
+            "y": 30,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-103-2",
+          "row": "103",
+          "number": 2,
+          "coordinates": {
+            "x": 20,
+            "y": 30,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-103-3",
+          "row": "103",
+          "number": 3,
+          "coordinates": {
+            "x": 30,
+            "y": 30,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-103-4",
+          "row": "103",
+          "number": 4,
+          "coordinates": {
+            "x": 40,
+            "y": 30,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-103-5",
+          "row": "103",
+          "number": 5,
+          "coordinates": {
+            "x": 50,
+            "y": 30,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-103-6",
+          "row": "103",
+          "number": 6,
+          "coordinates": {
+            "x": 60,
+            "y": 30,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-103-7",
+          "row": "103",
+          "number": 7,
+          "coordinates": {
+            "x": 70,
+            "y": 30,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-103-8",
+          "row": "103",
+          "number": 8,
+          "coordinates": {
+            "x": 80,
+            "y": 30,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-103-9",
+          "row": "103",
+          "number": 9,
+          "coordinates": {
+            "x": 90,
+            "y": 30,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-103-10",
+          "row": "103",
+          "number": 10,
+          "coordinates": {
+            "x": 100,
+            "y": 30,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-104-1",
+          "row": "104",
+          "number": 1,
+          "coordinates": {
+            "x": 10,
+            "y": 40,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-104-2",
+          "row": "104",
+          "number": 2,
+          "coordinates": {
+            "x": 20,
+            "y": 40,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-104-3",
+          "row": "104",
+          "number": 3,
+          "coordinates": {
+            "x": 30,
+            "y": 40,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-104-4",
+          "row": "104",
+          "number": 4,
+          "coordinates": {
+            "x": 40,
+            "y": 40,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-104-5",
+          "row": "104",
+          "number": 5,
+          "coordinates": {
+            "x": 50,
+            "y": 40,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-104-6",
+          "row": "104",
+          "number": 6,
+          "coordinates": {
+            "x": 60,
+            "y": 40,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-104-7",
+          "row": "104",
+          "number": 7,
+          "coordinates": {
+            "x": 70,
+            "y": 40,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-104-8",
+          "row": "104",
+          "number": 8,
+          "coordinates": {
+            "x": 80,
+            "y": 40,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-104-9",
+          "row": "104",
+          "number": 9,
+          "coordinates": {
+            "x": 90,
+            "y": 40,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-104-10",
+          "row": "104",
+          "number": 10,
+          "coordinates": {
+            "x": 100,
+            "y": 40,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-105-1",
+          "row": "105",
+          "number": 1,
+          "coordinates": {
+            "x": 10,
+            "y": 50,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-105-2",
+          "row": "105",
+          "number": 2,
+          "coordinates": {
+            "x": 20,
+            "y": 50,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-105-3",
+          "row": "105",
+          "number": 3,
+          "coordinates": {
+            "x": 30,
+            "y": 50,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-105-4",
+          "row": "105",
+          "number": 4,
+          "coordinates": {
+            "x": 40,
+            "y": 50,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-105-5",
+          "row": "105",
+          "number": 5,
+          "coordinates": {
+            "x": 50,
+            "y": 50,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-105-6",
+          "row": "105",
+          "number": 6,
+          "coordinates": {
+            "x": 60,
+            "y": 50,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-105-7",
+          "row": "105",
+          "number": 7,
+          "coordinates": {
+            "x": 70,
+            "y": 50,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-105-8",
+          "row": "105",
+          "number": 8,
+          "coordinates": {
+            "x": 80,
+            "y": 50,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-105-9",
+          "row": "105",
+          "number": 9,
+          "coordinates": {
+            "x": 90,
+            "y": 50,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        },
+        {
+          "id": "A-105-10",
+          "row": "105",
+          "number": 10,
+          "coordinates": {
+            "x": 100,
+            "y": 50,
+            "width": 8,
+            "height": 8
+          },
+          "type": "standard",
+          "is_accessible": false,
+          "is_companion_seat": false,
+          "is_obstructed_view": false,
+          "sight_line_rating": 5,
+          "distance_to_stage_meters": 20,
+          "viewing_angle_degrees": 90,
+          "suggested_price_tier": "pl_5999"
+        }
+      ]
+    }
+  ]
+}
