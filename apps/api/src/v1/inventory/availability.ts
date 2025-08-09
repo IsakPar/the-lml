@@ -7,6 +7,11 @@ import { MongoClient } from 'mongodb';
 export async function registerAvailabilityRoutes(app: FastifyInstance) {
   // Snapshot availability (seat- and section-level from seatmap + Redis locks)
   app.get('/v1/performances/:perfId/availability', async (req: any, reply) => {
+    const guard = (app as any).requireScopes?.(['inventory.read']);
+    if (guard) {
+      const resp = await guard(req, reply);
+      if (resp) return resp as any;
+    }
     const perfId = String(req.params.perfId);
     if (!perfId) return reply.code(422).type('application/problem+json').send(problem(422, 'invalid_request', 'perfId required', 'urn:thankful:inventory:invalid_perf', req.ctx?.traceId));
     if (!req.ctx.orgId) return reply.code(422).type('application/problem+json').send(problem(422, 'missing_header', 'X-Org-ID required', 'urn:thankful:header:missing_org', req.ctx?.traceId));
@@ -87,6 +92,11 @@ export async function registerAvailabilityRoutes(app: FastifyInstance) {
 
   // SSE stream
   app.get('/v1/performances/:perfId/availability/stream', async (req: any, reply) => {
+    const guard = (app as any).requireScopes?.(['inventory.read']);
+    if (guard) {
+      const resp = await guard(req, reply);
+      if (resp) return resp as any;
+    }
     const perfId = String(req.params.perfId);
     reply
       .header('Content-Type', 'text/event-stream')

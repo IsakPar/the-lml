@@ -7,6 +7,11 @@ import { problem } from '../../middleware/problem.js';
 export async function registerVenueRoutes(app: FastifyInstance, deps: { mongo: MongoClient }) {
   // GET /v1/venues (cursor pagination)
   app.get('/v1/venues', async (req: any, reply) => {
+    const guard = (app as any).requireScopes?.(['venues.read']);
+    if (guard) {
+      const resp = await guard(req, reply);
+      if (resp) return resp as any;
+    }
     const { limit, starting_after } = parseCursorParams(req.query, 20, 100);
     const venues = deps.mongo.db().collection('venues');
     const filter: any = {};
@@ -22,6 +27,11 @@ export async function registerVenueRoutes(app: FastifyInstance, deps: { mongo: M
   });
   // GET /v1/seatmaps/:seatmap_id
   app.get('/v1/seatmaps/:seatmapId', async (req: any, reply) => {
+    const guard = (app as any).requireScopes?.(['venues.read']);
+    if (guard) {
+      const resp = await guard(req, reply);
+      if (resp) return resp as any;
+    }
     const id = String(req.params.seatmapId);
     const seatmaps = deps.mongo.db().collection('seatmaps');
     const base = ObjectId.isValid(id) ? { _id: new ObjectId(id) } : { _id: id } as any;

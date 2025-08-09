@@ -12,6 +12,7 @@ This document tracks all issues identified in the audit and our concrete plan to
 ## 1) Security: Postgres Row‑Level Security (RLS)
 - Priority: P1
 - Owner: Platform
+- Status: PARTIAL — `withTenant(tenantId, fn)` added and initial RLS migration for `identity.users`; extend to all tenant tables and adopt in repos.
 - Why: DB‑level tenant isolation safety net; prevents cross‑org data leaks if app code misses filters.
 - Plan:
   - Enable RLS on all tenant tables (identity, venues, inventory, orders, payments).
@@ -28,7 +29,7 @@ This document tracks all issues identified in the audit and our concrete plan to
 - Priority: P1
 - Owner: Platform, Inventory
 - Why: Prevent duplicate processing on retries; exactly‑once UX and integrity.
-- Status: POST `/v1/holds` now stores and replays committed response; 202 for in‑progress.
+- Status: DONE — Holds POST/PATCH/DELETE idempotent (202 in‑progress; cached replay). Apply to future mutating routes as they land.
 - Plan:
   - Apply the same middleware/store to all other mutating routes as they are implemented (e.g., carts, allocations, pricing updates).
   - Persist response body hash + body; set TTLs; add metrics (begin/commit/hit_cached).
@@ -41,6 +42,7 @@ This document tracks all issues identified in the audit and our concrete plan to
 ## 3) Concurrency: fencing token on extend/release
 - Priority: P2
 - Owner: Inventory
+- Status: DONE — PATCH/DELETE require `hold_token` or `If-Match`; 412 when missing.
 - Status: PATCH/DELETE `/v1/holds` now require `hold_token` or `If-Match`; 412 Precondition when missing.
 - Plan:
   - Standardize Problem+JSON for 412 with stable `type`.
@@ -55,11 +57,12 @@ This document tracks all issues identified in the audit and our concrete plan to
 - Plan: Document contract; add tests for partial conflicts returning 409 + conflicting seats.
 - DoD: Multi‑seat acquire is atomic; conflicts enumerated.
 - Tests: Multi‑seat success; multi‑seat conflict set.
+ - Status: PARTIAL — Implementation present; tests pending.
 
 ## 5) Availability + SSE
 - Priority: P2
 - Owner: Inventory, Venues
-- Status: Snapshot endpoint implemented (Mongo seatmap + Redis lock scan); SSE emits events on lock/release.
+- Status: PARTIAL — Snapshot implemented; SSE emits enriched events (expires_at, sales_channel_id). GA pools/debouncing pending.
 - Plan:
   - Enrich SSE events with `expires_at` and `sales_channel_id` on both lock/release.
   - Support GA pools (zone‑level counts); strong ETags per snapshot inputs.
@@ -76,10 +79,12 @@ This document tracks all issues identified in the audit and our concrete plan to
   - Ensure client_credentials vs user tokens enforce different capabilities.
 - DoD: Requests without scope return 403; happy‑path succeeds with scope.
 - Tests: Insufficient scope → 403; proper scope → 2xx.
+ - Status: PARTIAL — Holds guarded; extend to other protected routes.
 
 ## 7) OAuth2.1 polish (password grant, brute‑force)
 - Priority: P2
 - Owner: Identity, Platform
+- Status: PARTIAL — per-user/IP RL added on password grant; `iss`/`aud` enforced. PKCE plan + alg allowlist pending.
 - Plan:
   - Add per‑user/IP rate limit on `/v1/oauth/token` password grant; include `Retry-After`.
   - Validate JWT `iss`/`aud`/`alg` allowlist; plan Auth Code + PKCE to replace password grant for non‑first‑party.
@@ -89,7 +94,7 @@ This document tracks all issues identified in the audit and our concrete plan to
 ## 8) Rate limiting (headers, per‑route, distributed)
 - Priority: P2
 - Owner: Platform
-- Status: X‑RateLimit headers present.
+- Status: PARTIAL — Global limiter keys by stable route URL; X‑RateLimit headers present; dedicated login limiter added. Per‑route budgets + Redis backend pending.
 - Plan:
   - Per‑route budgets (stricter for token issuance and mutating routes); key by `{orgId|userId}+route+method`.
   - Move counters to Redis for multi‑instance.
@@ -99,6 +104,7 @@ This document tracks all issues identified in the audit and our concrete plan to
 ## 9) Observability (metrics/tracing)
 - Priority: P3
 - Owner: Platform
+- Status: PENDING — add Prometheus metrics and basic OpenTelemetry spans.
 - Plan:
   - Prometheus `prom-client`: HTTP request counters and latency histograms per route; domain counters (holds ok/conflict, idem begin/commit/hit).
   - OpenTelemetry: Root span per request; spans for Redis/Mongo/PG.
@@ -109,6 +115,7 @@ This document tracks all issues identified in the audit and our concrete plan to
 ## 10) Testing & CI improvements
 - Priority: P2
 - Owner: Platform, Inventory
+- Status: PENDING — add concurrency/idempotency/SSE/RLS tests; k6 smoke; CDC tests.
 - Plan:
   - Add concurrency/idempotency/SSE/RLS tests; fix any flakiness.
   - Add k6 smoke for holds; CDC tests from OpenAPI.
@@ -117,6 +124,7 @@ This document tracks all issues identified in the audit and our concrete plan to
 ## 11) Mongo seatmap tenant binding
 - Priority: P2
 - Owner: Venues
+- Status: DONE — importer sets `orgId`; API filters by `orgId` on fetch.
 - Plan:
   - Add `orgId` to seatmap docs in importer; require match with `X-Org-ID` on fetch.
   - Index (`orgId`, `_id`).
@@ -127,24 +135,28 @@ This document tracks all issues identified in the audit and our concrete plan to
 - Owner: Platform
 - Plan: DB/Redis/Mongo retry on boot; compose healthchecks; readyz reflects dependencies; graceful shutdown waits for in‑flight requests.
 - DoD: Robust startup; clean shutdown; `/readyz` accurate.
+- Status: PENDING — basic local process stabilization done; full startup retries and graceful shutdown not implemented here.
 
 ## 13) CI/CD & dependency hygiene
 - Priority: P3
 - Owner: Platform
 - Plan: Add `pnpm audit`/Dependabot; CodeQL; enforce build/typecheck/lint/tests/CDC gates.
 - DoD: CI fails on known vulns; PRs blocked on gates.
+- Status: PENDING.
 
 ## 14) JWT validation hardening
 - Priority: P2
 - Owner: Platform
 - Plan: Enforce `iss`, `aud`, `alg` allowlist; optional `kid` rotation path.
 - DoD: Tokens with wrong `iss/aud/alg` rejected; tests added.
+- Status: PARTIAL — `iss`/`aud` enforced; `alg` allowlist and `kid` rotation pending.
 
 ## 15) Documentation
 - Priority: P3
 - Owner: Platform
 - Plan: Update API docs for idempotency usage, `If-Match` fencing, required headers, scopes, rate limits, SSE event formats; changelog on contract changes.
 - DoD: Docs published; examples consistent with behavior.
+ - Status: PARTIAL — remediation plan updated; full API docs pending.
 
 ---
 
@@ -168,7 +180,7 @@ This document tracks all issues identified in the audit and our concrete plan to
 
 ## Current Status (updated)
 - Availability snapshot: implemented (seatmap + Redis) with ETag.
-- SSE: emits lock/release; enrichment pending.
+- SSE: enriched lock/release events (expires_at, sales_channel_id).
 - Idempotency (holds): 202 for in‑progress; committed responses replayed.
 - Fencing: `If-Match`/`hold_token` required on extend/release; 412 when missing.
 - `/v1/status`: implemented with `Cache-Control: no-store`.
