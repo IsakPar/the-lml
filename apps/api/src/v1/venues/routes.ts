@@ -24,7 +24,8 @@ export async function registerVenueRoutes(app: FastifyInstance, deps: { mongo: M
   app.get('/v1/seatmaps/:seatmapId', async (req: any, reply) => {
     const id = String(req.params.seatmapId);
     const seatmaps = deps.mongo.db().collection('seatmaps');
-    const filter = ObjectId.isValid(id) ? { _id: new ObjectId(id) } : { _id: id } as any;
+    const base = ObjectId.isValid(id) ? { _id: new ObjectId(id) } : { _id: id } as any;
+    const filter = req.ctx?.orgId ? { ...base, orgId: req.ctx.orgId } : base;
     const doc = await seatmaps.findOne(filter);
     if (!doc) {
       return reply.code(404).type('application/problem+json').send(problem(404, 'not_found', 'seatmap not found', 'urn:thankful:venues:seatmap_not_found', req.ctx?.traceId));

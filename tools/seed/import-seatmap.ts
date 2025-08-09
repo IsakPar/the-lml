@@ -5,6 +5,7 @@ import { resolve, extname } from 'node:path';
 async function main() {
   const input = process.argv[2] || 'tools/seed/data/smap_demo_50.json';
   const url = process.env.MONGODB_URL || 'mongodb://localhost:27017/thankful';
+  const orgId = process.env.ORG_ID || 'org_demo';
   const mongo = new MongoClient(url);
   await mongo.connect();
   const db = mongo.db();
@@ -16,12 +17,12 @@ async function main() {
     const content = JSON.parse(readFileSync(resolve(filePath), 'utf8'));
     await venues.updateOne(
       { _id: content.venue_id as any },
-      { $set: { _id: content.venue_id, name: content.venue_name || 'Imported Venue', tz: content.venue_tz || 'UTC' } },
+      { $set: { _id: content.venue_id, orgId, name: content.venue_name || 'Imported Venue', tz: content.venue_tz || 'UTC', updated_at: new Date() } },
       { upsert: true }
     );
     await seatmaps.updateOne(
       { _id: content.seatmap_id as any },
-      { $set: { ...content, _id: content.seatmap_id, is_published: true, updated_at: new Date(), hash: content.hash || 'seed' } },
+      { $set: { ...content, _id: content.seatmap_id, orgId, is_published: true, updated_at: new Date(), hash: content.hash || 'seed' } },
       { upsert: true }
     );
     console.log('Imported seatmap JSON:', content.seatmap_id);

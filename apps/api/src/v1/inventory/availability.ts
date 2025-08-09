@@ -14,13 +14,15 @@ export async function registerAvailabilityRoutes(app: FastifyInstance) {
     const seatmapId = String(req.query?.seatmap_id || '');
     if (!seatmapId) return reply.code(422).type('application/problem+json').send(problem(422, 'invalid_request', 'seatmap_id required', 'urn:thankful:inventory:missing_seatmap', req.ctx?.traceId));
 
-    // Load seatmap from Mongo
+    // Load seatmap from Mongo (tenant-scoped)
     let seatmap: any;
     try {
       const mongo = (req.server as any).mongo as MongoClient | undefined;
       if (!mongo) throw new Error('mongo client not available');
       const seatmaps = mongo.db().collection('seatmaps');
-      seatmap = await seatmaps.findOne({ _id: seatmapId as any });
+      const filter: any = { _id: seatmapId as any };
+      if (req.ctx?.orgId) filter.orgId = req.ctx.orgId;
+      seatmap = await seatmaps.findOne(filter);
       if (!seatmap) return reply.code(404).type('application/problem+json').send(problem(404, 'not_found', 'seatmap not found', 'urn:thankful:inventory:seatmap_not_found', req.ctx?.traceId));
     } catch (e: any) {
       return reply.code(500).type('application/problem+json').send(problem(500, 'mongo_error', String(e?.message || e), 'urn:thankful:infra:mongo', req.ctx?.traceId));
