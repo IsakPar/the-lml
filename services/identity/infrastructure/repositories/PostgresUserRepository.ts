@@ -24,7 +24,7 @@ export class PostgresUserRepository extends BaseRepository implements UserReposi
       
       // Check if user exists
       const existingUser = await this.db.queryOne<{ id: string }>(
-        'SELECT id FROM identity.users WHERE id = $1',
+        'SELECT id FROM identity.users WHERE id = $1 AND tenant_id = lml.current_tenant()',
         [user.getId()]
       );
 
@@ -38,7 +38,7 @@ export class PostgresUserRepository extends BaseRepository implements UserReposi
               is_email_verified = $6, is_phone_verified = $7,
               first_name = $8, last_name = $9, date_of_birth = $10,
               avatar_url = $11, preferences = $12, updated_at = NOW()
-          WHERE id = $1
+          WHERE id = $1 AND tenant_id = lml.current_tenant()
           RETURNING *
         `, [
           userData.id, userData.email, userData.phone, userData.password_hash,
@@ -50,9 +50,9 @@ export class PostgresUserRepository extends BaseRepository implements UserReposi
         // Insert new user
         savedUserData = await this.db.queryOne(`
           INSERT INTO identity.users (
-            id, email, phone, password_hash, role, is_email_verified, is_phone_verified,
+            id, tenant_id, email, phone, password_hash, role, is_email_verified, is_phone_verified,
             first_name, last_name, date_of_birth, avatar_url, preferences
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          ) VALUES ($1, lml.current_tenant(), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
           RETURNING *
         `, [
           userData.id, userData.email, userData.phone, userData.password_hash,
@@ -94,7 +94,7 @@ export class PostgresUserRepository extends BaseRepository implements UserReposi
   async findById(id: string): Promise<Result<User | null, RepositoryError>> {
     try {
       const userData = await this.db.queryOne(`
-        SELECT * FROM identity.users WHERE id = $1
+        SELECT * FROM identity.users WHERE id = $1 AND tenant_id = lml.current_tenant()
       `, [id]);
 
       if (!userData) {
@@ -116,7 +116,7 @@ export class PostgresUserRepository extends BaseRepository implements UserReposi
   async findByEmail(email: Email): Promise<Result<User | null, RepositoryError>> {
     try {
       const userData = await this.db.queryOne(`
-        SELECT * FROM identity.users WHERE email = $1
+        SELECT * FROM identity.users WHERE email = $1 AND tenant_id = lml.current_tenant()
       `, [email.value]);
 
       if (!userData) {
@@ -138,7 +138,7 @@ export class PostgresUserRepository extends BaseRepository implements UserReposi
   async findByPhone(phone: PhoneNumber): Promise<Result<User | null, RepositoryError>> {
     try {
       const userData = await this.db.queryOne(`
-        SELECT * FROM identity.users WHERE phone = $1
+        SELECT * FROM identity.users WHERE phone = $1 AND tenant_id = lml.current_tenant()
       `, [phone.value]);
 
       if (!userData) {
@@ -160,7 +160,7 @@ export class PostgresUserRepository extends BaseRepository implements UserReposi
   async emailExists(email: Email): Promise<Result<boolean, RepositoryError>> {
     try {
       const result = await this.db.queryOne<{ exists: boolean }>(
-        'SELECT EXISTS(SELECT 1 FROM identity.users WHERE email = $1) as exists',
+        'SELECT EXISTS(SELECT 1 FROM identity.users WHERE email = $1 AND tenant_id = lml.current_tenant()) as exists',
         [email.value]
       );
       
@@ -178,7 +178,7 @@ export class PostgresUserRepository extends BaseRepository implements UserReposi
   async phoneExists(phone: PhoneNumber): Promise<Result<boolean, RepositoryError>> {
     try {
       const result = await this.db.queryOne<{ exists: boolean }>(
-        'SELECT EXISTS(SELECT 1 FROM identity.users WHERE phone = $1) as exists',
+        'SELECT EXISTS(SELECT 1 FROM identity.users WHERE phone = $1 AND tenant_id = lml.current_tenant()) as exists',
         [phone.value]
       );
       
@@ -196,7 +196,7 @@ export class PostgresUserRepository extends BaseRepository implements UserReposi
   async findByRole(role: UserRole): Promise<Result<User[], RepositoryError>> {
     try {
       const usersData = await this.db.queryMany(`
-        SELECT * FROM identity.users WHERE role = $1 ORDER BY created_at DESC
+        SELECT * FROM identity.users WHERE role = $1 AND tenant_id = lml.current_tenant() ORDER BY created_at DESC
       `, [role]);
 
       const users = await Promise.all(
@@ -305,7 +305,7 @@ export class PostgresUserRepository extends BaseRepository implements UserReposi
   async updateLastLogin(id: string): Promise<Result<void, RepositoryError>> {
     try {
       await this.db.query(
-        'UPDATE identity.users SET last_login_at = NOW() WHERE id = $1',
+        'UPDATE identity.users SET last_login_at = NOW() WHERE id = $1 AND tenant_id = lml.current_tenant()',
         [id]
       );
       
