@@ -21,6 +21,7 @@ export async function registerIdentityRoutes(app: FastifyInstance) {
       if (!username || !password) {
         return reply.code(400).type('application/problem+json').send(problem(400, 'invalid_request', 'username and password required', 'urn:thankful:oauth:invalid_request', req.ctx?.traceId));
       }
+      // Optional: apply a tighter rate limit policy in middleware later
       const userId = `usr_${Buffer.from(username).toString('hex').slice(0, 8)}`;
       const accessToken = jwt.signAccess({ sub: userId, userId, orgId: req.ctx.orgId, role: 'user', permissions: [] });
       const refreshToken = jwt.signRefresh({ sub: userId, userId, orgId: req.ctx.orgId, role: 'user', permissions: [] });

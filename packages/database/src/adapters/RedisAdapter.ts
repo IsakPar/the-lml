@@ -160,7 +160,7 @@ export class RedisAdapter {
    */
   async exists(key: string): Promise<boolean> {
     const result = await this.client.exists(this.buildKey(key));
-    return result === 1;
+    return Boolean(result);
   }
 
   /**
@@ -168,7 +168,7 @@ export class RedisAdapter {
    */
   async expire(key: string, ttlSeconds: number): Promise<boolean> {
     const result = await this.client.expire(this.buildKey(key), ttlSeconds);
-    return result === 1;
+    return Boolean(result);
   }
 
   /**
@@ -373,18 +373,18 @@ export class RedisAdapter {
     if (pattern) options.MATCH = this.buildKey(pattern);
     if (count) options.COUNT = count;
 
-    const result = await this.client.scan(cursor.toString(), options);
+    const result = await this.client.scan(cursor as any, options as any);
     
     // Remove prefix from returned keys
-    let keys = result.keys;
+    let keys = (result.keys as any[]).map((k) => (typeof k === 'string' ? k : (k as Buffer).toString('utf8')));
     if (this.config.keyPrefix) {
       const prefixLength = this.config.keyPrefix.length + 1;
-      keys = keys.map(key => key.substring(prefixLength));
+      keys = keys.map(key => (key as string).substring(prefixLength));
     }
 
     return {
-      cursor: parseInt(result.cursor),
-      keys,
+      cursor: Number((result as any).cursor),
+      keys: keys as string[],
     };
   }
 

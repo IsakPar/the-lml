@@ -22,8 +22,8 @@ export function createIdemStore(client: RedisLike) {
       else if (existing.state === 'in-progress') metrics.idem_begin_conflict_total.inc();
       return existing;
     },
-    async commit(key: string, meta: { status: number; headersHash: string; bodyHash: string }, ttlSec: number): Promise<void> {
-      const committed: IdemState = { state: 'committed', status: meta.status, headersHash: meta.headersHash, bodyHash: meta.bodyHash, createdAt: Date.now() };
+    async commit(key: string, meta: { status: number; headersHash: string; bodyHash: string; responseBody?: string }, ttlSec: number): Promise<void> {
+      const committed: IdemState = { state: 'committed', status: meta.status, headersHash: meta.headersHash, bodyHash: meta.bodyHash, responseBody: meta.responseBody, createdAt: Date.now() };
       await client.set(key, JSON.stringify(committed), 'EX', ttlSec, 'XX');
       metrics.idem_commit_total.inc();
     }

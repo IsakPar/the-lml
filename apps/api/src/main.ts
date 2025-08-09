@@ -33,6 +33,7 @@ async function main() {
   // Shared clients (can be moved to DI later)
   const mongo = new MongoClient(String(process.env.MONGODB_URL || 'mongodb://localhost:27017/thankful'));
   await mongo.connect();
+  (app as any).mongo = mongo;
   await registerVenueRoutes(app, { mongo });
   await registerInventoryRoutes(app);
   await registerAvailabilityRoutes(app);

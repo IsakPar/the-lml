@@ -40,12 +40,21 @@ export function registerAuth(app: FastifyInstance) {
         userId: claims.userId,
         clientId: claims.clientId,
         role: claims.role,
-        permissions: claims.permissions,
+        permissions: Array.isArray(claims.permissions) ? claims.permissions : [],
       };
     } catch (e: any) {
       return reply.code(401).type('application/problem+json').send(problem(401, 'unauthorized', e?.message || 'invalid token', 'urn:thankful:auth:invalid_token', req.ctx?.traceId));
     }
   });
+
+  // Simple scope guard decorator on instance
+  (app as any).requireScopes = (required: string[]) => async (req: FastifyRequest, reply: FastifyReply) => {
+    const perms = (req.user?.permissions || []) as string[];
+    const ok = required.every((r) => perms.includes(r) || perms.includes('*'));
+    if (!ok) {
+      return reply.code(403).type('application/problem+json').send(problem(403, 'forbidden', 'missing required scope', 'urn:thankful:auth:forbidden', (req as any).ctx?.traceId));
+    }
+  };
 }
 
 

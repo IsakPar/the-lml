@@ -112,6 +112,16 @@ export class PostgresAdapter {
   }
 
   /**
+   * Execute a function within a tenant context using SET LOCAL app.tenant_id for RLS
+   */
+  async withTenant<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
+    return this.transaction(async (client) => {
+      await client.query("SET LOCAL app.tenant_id = $1", [tenantId]);
+      return fn(client);
+    });
+  }
+
+  /**
    * Execute a batch of queries efficiently
    */
   async batch(queries: Array<{ text: string; params?: any[] }>): Promise<QueryResult[]> {
