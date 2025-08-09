@@ -65,7 +65,7 @@ export async function registerAvailabilityRoutes(app: FastifyInstance) {
     const pricingMap = new Map<string, any>();
     for (const s of allSeats) {
       const pl = s.suggested_price_tier;
-      if (pl && !pricingMap.has(pl)) pricingMap.set(pl, { price_level_id: pl, name: String(pl), face_value: { amount: '0', currency: 'USD' }, fees: [] });
+      if (pl && !pricingMap.has(pl)) pricingMap.set(pl, { price_level_id: pl, name: String(pl), face_value: { amount: '0', currency: process.env.DEFAULT_CURRENCY || 'USD' }, fees: [] });
     }
 
     // Strong-ish ETag from seatmap hash + held count

@@ -1,12 +1,19 @@
 import type { FastifyInstance } from 'fastify';
 import { JwtService } from '../../utils/jwt.js';
 import { problem } from '../../middleware/problem.js';
+import { rateLimitByKey } from '../../middleware/rateLimit.js';
 
 export async function registerIdentityRoutes(app: FastifyInstance) {
+  // Tighter limiter for password grant (per user/IP)
+  const loginLimiter = rateLimitByKey(5, 60, (req: any) => `login:${req.body?.username || ''}:${req.ip}`);
   const jwt = new JwtService();
 
   // OAuth2.1 token endpoint (simplified: password/client_credentials for MVP)
-  app.post('/v1/oauth/token', async (req: any, reply) => {
+  app.post('/v1/oauth/token', { preHandler: async (req: any, reply) => {
+    if (req.body?.grant_type === 'password') {
+      await (loginLimiter as any)(req, reply);
+    }
+  } }, async (req: any, reply) => {
     const { grant_type, client_id, client_secret, username, password } = req.body || {};
 
     if (grant_type === 'client_credentials') {
@@ -17,6 +24,7 @@ export async function registerIdentityRoutes(app: FastifyInstance) {
     }
 
     if (grant_type === 'password') {
+      // Apply request-level throttle (per user/IP) via rateLimit middleware in future; here we add minimal sleep on repeated failures
       // TODO: validate user with Identity service
       if (!username || !password) {
         return reply.code(400).type('application/problem+json').send(problem(400, 'invalid_request', 'username and password required', 'urn:thankful:oauth:invalid_request', req.ctx?.traceId));
