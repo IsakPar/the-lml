@@ -1,0 +1,59 @@
+---
+description: "Service layout, DDD boundaries, allowed dependencies, and cross-context comms."
+globs:
+  - "services/**"
+  - "apps/**"
+  - "packages/**"
+alwaysApply: false
+---
+
+## How to apply in PR review
+- Repo layout reflects contexts with `domain/`, `application/`, `interface/`, `infrastructure/` per service.
+- Imports obey boundaries (no `infra` into `interface`, no framework in `domain`, no cross‑context deep imports).
+- Ports live in `application`; adapters in `infrastructure`; wired via DI at composition root.
+- Cross‑context comms via events or versioned HTTP/RPC only; outbox pattern used for reliability.
+- HTTP conventions followed: `/api/v1/...`, JSON `camelCase`, RFC7807 errors, idempotent writes.
+- Seating/locking: Redis hold + Postgres `version` checks where applicable; DB authoritative for RESERVED/PAID.
+- Any breaking change introduces a new version and leaves a compatible shim.
+
+# Repo shape (example)
+- `services/<context>/` — one service per bounded context
+  - `domain/` — entities, value objects, domain services; **no imports from infra/frameworks**
+  - `application/` — use cases, ports (interfaces), DTOs, mappers
+  - `interface/` — http/rpc/graphql handlers, schedulers, consumers
+  - `infrastructure/` — db adapters, http clients, messaging, cache
+- `packages/` — shared libraries that are **framework-free** and **versioned** (e.g., `logging`, `result`, `id`, `crypto`).
+- `docs/`, `ops/` — architecture notes, infra as code, runbooks.
+
+# Allowed imports (strict)
+- `domain` ⇐ nothing
+- `application` ⇐ domain
+- `interface` ⇐ application
+- `infrastructure` ⇐ application (implement ports)
+- **Never**: interface ⇐ infrastructure, domain ⇐ anything, or cross‑context deep imports.
+
+# Ports & Adapters
+- Every external dependency (db, message bus, Stripe, Redis, HTTP) is a **Port** in `application`.
+- `infrastructure` implements ports; swap via DI at composition root.
+
+# Cross-context communication
+- Prefer **async events** or **public HTTP/RPC** with versioned contracts. No sneaky imports across services.
+- Outbox/inbox pattern for reliable publish; exactly‑once is a business guarantee simulated by **idempotency keys** + **at‑least‑once** infra.
+
+## HTTP API conventions
+- Base path `/api/v1/...` for public endpoints; additive changes only within `v1`.
+- JSON is `camelCase`. Errors use RFC7807 (+ `details` for codes/validation fields).
+- All mutating endpoints accept `Idempotency-Key`.
+
+# Files & size
+- Keep files ≤200 lines when possible; split by responsibilities.
+- One public export per file; named exports only (no default exports).
+
+# Breaking changes
+- Breaking contract? Bump version, keep a compatibility shim, mark old one as `@deprecated`, and plan removal.
+
+## Seating and locking (critical)
+- Seat holds managed via Redis + Postgres fencing tokens.
+- `event_seats.version` is monotonic; any update checks expected version/token and rejects stale operations.
+- Hold TTL: 120s; one 60s extension permitted prior to expiry. Values are centrally configured and may be overridden per event.
+- Database remains the source of truth for RESERVED/PAID; Redis is ephemeral for holds only.

@@ -1,0 +1,35 @@
+---
+description: "Logging, metrics, and tracing defaults."
+globs:
+  - "**/*.ts"
+  - "**/*.tsx"
+alwaysApply: false
+---
+
+## How to apply in PR review
+- Correlation ID is created on entry and propagated to all logs/traces/responses.
+- Logs are structured and include required fields; no PII/tokens.
+- Metrics counters/histograms added for critical paths; names follow `<svc>.<area>.<metric>`.
+- External calls wrapped in spans with target/status/retries attributes.
+- SLOs instrumented; alert conditions (error rate/latency/webhook lag) defined and/or updated.
+
+# Correlation
+- Generate/propagate `correlationId` on entry (HTTP header or message attribute).
+- Every log line includes: `service`, `context`, `correlationId`, `event`, `severity`, and minimal fields.
+
+# Metrics
+- Emit counters for requests, errors, retries, and external calls; histograms for latency.
+- Name metrics with stable prefixes: `<svc>.<area>.<metric>`.
+
+# Tracing
+- Wrap external calls with spans; add attributes for target host, status, and retries.
+
+# SLOs (initial)
+- p99 `POST /seats/hold` ≤ 150ms
+- p99 `POST /orders` ≤ 600ms (server processing only)
+- p99 webhook event to `Order:CONFIRMED` ≤ 2s
+
+# Alerting (starters)
+- Error rate > 1% for 5m on critical endpoints.
+- SLO burn alerts for p99 latency breaches over rolling 15m/1h.
+- Webhook lag queue depth > threshold.

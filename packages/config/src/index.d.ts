@@ -1,0 +1,65 @@
+import { z } from 'zod';
+declare const EnvSchema: z.ZodEffects<z.ZodObject<{
+    NODE_ENV: z.ZodDefault<z.ZodEnum<["development", "test", "production"]>>;
+    DATABASE_URL: z.ZodString;
+    REDIS_URL: z.ZodString;
+    MONGODB_URL: z.ZodString;
+    STRIPE_SECRET_KEY: z.ZodString;
+    STRIPE_WEBHOOK_SECRET: z.ZodString;
+    HOLD_TTL_SECONDS: z.ZodDefault<z.ZodNumber>;
+    HOLD_EXTENSION_SECONDS: z.ZodDefault<z.ZodNumber>;
+    HOLD_MAX_TTL_SECONDS: z.ZodDefault<z.ZodNumber>;
+    RATE_LIMIT_HOLD_PER_MIN: z.ZodDefault<z.ZodNumber>;
+    RATE_LIMIT_AUTH_PER_MIN: z.ZodDefault<z.ZodNumber>;
+}, "strip", z.ZodTypeAny, {
+    NODE_ENV: "development" | "test" | "production";
+    DATABASE_URL: string;
+    REDIS_URL: string;
+    MONGODB_URL: string;
+    STRIPE_SECRET_KEY: string;
+    STRIPE_WEBHOOK_SECRET: string;
+    HOLD_TTL_SECONDS: number;
+    HOLD_EXTENSION_SECONDS: number;
+    HOLD_MAX_TTL_SECONDS: number;
+    RATE_LIMIT_HOLD_PER_MIN: number;
+    RATE_LIMIT_AUTH_PER_MIN: number;
+}, {
+    DATABASE_URL: string;
+    REDIS_URL: string;
+    MONGODB_URL: string;
+    STRIPE_SECRET_KEY: string;
+    STRIPE_WEBHOOK_SECRET: string;
+    NODE_ENV?: "development" | "test" | "production" | undefined;
+    HOLD_TTL_SECONDS?: number | undefined;
+    HOLD_EXTENSION_SECONDS?: number | undefined;
+    HOLD_MAX_TTL_SECONDS?: number | undefined;
+    RATE_LIMIT_HOLD_PER_MIN?: number | undefined;
+    RATE_LIMIT_AUTH_PER_MIN?: number | undefined;
+}>, {
+    NODE_ENV: "development" | "test" | "production";
+    DATABASE_URL: string;
+    REDIS_URL: string;
+    MONGODB_URL: string;
+    STRIPE_SECRET_KEY: string;
+    STRIPE_WEBHOOK_SECRET: string;
+    HOLD_TTL_SECONDS: number;
+    HOLD_EXTENSION_SECONDS: number;
+    HOLD_MAX_TTL_SECONDS: number;
+    RATE_LIMIT_HOLD_PER_MIN: number;
+    RATE_LIMIT_AUTH_PER_MIN: number;
+}, {
+    DATABASE_URL: string;
+    REDIS_URL: string;
+    MONGODB_URL: string;
+    STRIPE_SECRET_KEY: string;
+    STRIPE_WEBHOOK_SECRET: string;
+    NODE_ENV?: "development" | "test" | "production" | undefined;
+    HOLD_TTL_SECONDS?: number | undefined;
+    HOLD_EXTENSION_SECONDS?: number | undefined;
+    HOLD_MAX_TTL_SECONDS?: number | undefined;
+    RATE_LIMIT_HOLD_PER_MIN?: number | undefined;
+    RATE_LIMIT_AUTH_PER_MIN?: number | undefined;
+}>;
+export type AppEnv = z.infer<typeof EnvSchema>;
+export declare function loadConfig(source?: NodeJS.ProcessEnv): AppEnv;
+export {};

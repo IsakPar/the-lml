@@ -1,0 +1,43 @@
+{
+  "name": "thankful-monorepo",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "packageManager": "pnpm@8.15.7",
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "clean": "rimraf ./dist ./apps/**/dist ./packages/**/dist ./services/**/dist",
+    "build": "tsc -b && tsc-alias -p tsconfig.json",
+    "typecheck": "tsc -b --pretty false",
+    "lint": "eslint .",
+    "format": "prettier -w .",
+    "dev:api": "tsx -r tsconfig-paths/register apps/api/src/main.ts",
+    "dev:worker": "tsx -r tsconfig-paths/register apps/worker/src/main.ts",
+    "dev:stack:up": "docker compose -f ops/dev/docker-compose.yml up -d",
+    "dev:stack:down": "docker compose -f ops/dev/docker-compose.yml down -v",
+    "migrate:dev": "tsx -r tsconfig-paths/register packages/migrations/src/umzug.ts up",
+    "migrate:down": "tsx -r tsconfig-paths/register packages/migrations/src/umzug.ts down",
+    "migrate:status": "tsx -r tsconfig-paths/register packages/migrations/src/umzug.ts status",
+    "migrate:prod": "node -e \"if(!process.env.CONFIRM_PROD_MIGRATIONS){console.error('Set CONFIRM_PROD_MIGRATIONS=1');process.exit(1)}\" && tsx -r tsconfig-paths/register packages/migrations/src/umzug.ts up",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.9",
+    "eslint": "^9.7.0",
+    "eslint-plugin-boundaries": "^4.2.1",
+    "@typescript-eslint/eslint-plugin": "^7.15.0",
+    "@typescript-eslint/parser": "^7.15.0",
+    "prettier": "^3.3.3",
+    "rimraf": "^5.0.7",
+    "tsc-alias": "^1.8.8",
+    "tsconfig-paths": "^4.2.0",
+    "tsx": "^4.15.7",
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
+  }
+}
+

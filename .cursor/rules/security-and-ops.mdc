@@ -1,0 +1,45 @@
+---
+description: "Security, reliability, and operational guardrails."
+globs:
+  - "services/**"
+  - "apps/**"
+alwaysApply: false
+---
+
+## How to apply in PR review
+- Config validated at startup; no secrets in code; least privilege for creds.
+- Validate/sanitize all external inputs at interface boundary; set content type; emit RFC7807 on errors.
+- Writes accept `Idempotency-Key`; retries use backoff+jitter with capped attempts and metrics.
+- Data handling: PII redacted; Postgres is source of truth; Redis is ephemeral (locks/cache) with namespaced keys and TTLs.
+- Seat holds use fencing tokens + Postgres version checks; DB remains authoritative for RESERVED/PAID.
+- Baseline rate limits applied (holds 10/min/user; auth 20/min/IP), or changes justified and configured.
+- Role checks guard privileged endpoints (`OrganizerAdmin`, `Support`, `SuperAdmin`).
+
+# Secrets & config
+- No secrets in code. Use env + runtime config validation (e.g., zod). Fail fast on startup.
+- Principle of least privilege for all service accounts.
+
+# Input & output
+- Validate all external inputs at **interface** boundary; encode outputs; set content type explicitly.
+ - Emit RFC7807 for HTTP errors with optional `details` for machine codes and field errors.
+
+# Idempotency & retries
+- All write endpoints/consumers accept an **Idempotency-Key**; dedupe per key + actor + operation.
+- Use **exponential backoff + jitter** for transient failures; cap retries and emit metrics.
+
+# Data
+- PII & payments: redact in logs; encrypt at rest where applicable.
+- Prefer Postgres for source‑of‑truth; Redis is cache only (namespaced keys, TTLs, size limits).
+ - Seat holds use Redis with fencing tokens; authoritative state in Postgres only.
+
+# Supply chain
+- Pin dependencies; run audit in CI; block known‑bad.
+
+# Rate limiting (initial)
+- Holds: 10/min per user/session.
+- Auth endpoints: 20/min per IP.
+- Availability & read endpoints: generous but bounded; tune via load tests.
+- Configure centrally with per‑event overrides for major on‑sales.
+
+# Roles & permissions (baseline)
+- `User`, `OrganizerAdmin`, `Support`, `SuperAdmin`. Detailed matrix to be encoded per feature.

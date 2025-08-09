@@ -1,0 +1,11 @@
+{
+  "name": "@thankful/result",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "import": "./dist/index.js", "types": "./dist/index.d.ts" } },
+  "scripts": { "build": "tsc -p tsconfig.json && tsc-alias -p tsconfig.json", "clean": "rimraf dist" }
+}
+
+

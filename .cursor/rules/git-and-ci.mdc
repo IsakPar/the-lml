@@ -1,0 +1,20 @@
+---
+description: "Conventional commits, PR hygiene, and CI gates."
+alwaysApply: false
+---
+
+## How to apply in PR review
+- Commits use Conventional Commits; PR covers one logical change.
+- PR checklist complete: tests/docs updated; migrations reviewed; changelog updated if public.
+- CI must pass all gates; no skipped tests on main.
+- pnpm only: `pnpm install`, `pnpm run build`, `pnpm test`; verify TS build locally before push.
+
+# Commits & PRs
+- Conventional Commits (`feat:`, `fix:`, `refactor:`, etc.). One logical change per PR.
+- PR checklist: updated tests; updated docs/changelog if user‑visible; migration scripts reviewed.
+
+# CI gates (blockers)
+- Build, typecheck, lint, test (coverage thresholds), security audit, and size/dep diff.
+- No skipped tests in main. Flaky tests are fixed or quarantined with an issue opened.
+ - Package manager: pnpm only. Use `pnpm install`, `pnpm run build`, `pnpm test`.
+ - Before pushing/PR: run `pnpm run build` locally and fix TypeScript issues properly (no bypassing).

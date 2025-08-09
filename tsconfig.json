@@ -1,0 +1,29 @@
+{
+  "references": [
+    { "path": "packages/config" },
+    { "path": "packages/http" },
+    { "path": "packages/metrics" },
+    { "path": "packages/platform/api" },
+    { "path": "packages/platform/worker" },
+    { "path": "packages/migrations" },
+    { "path": "packages/idempotency" },
+    { "path": "packages/ratelimit" },
+    { "path": "apps/api" },
+    { "path": "apps/worker" }
+  ],
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "emitDeclarationOnly": false,
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "baseUrl": ".",
+    "outDir": "./dist"
+  }
+}
+

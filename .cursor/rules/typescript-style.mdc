@@ -1,0 +1,41 @@
+---
+description: "TypeScript code style & safety."
+globs:
+  - "**/*.ts"
+  - "**/*.tsx"
+alwaysApply: false
+---
+
+## How to apply in PR review
+- Strict TypeScript: no `any`, no `@ts-ignore`; prefer `satisfies` and proper narrowing.
+- Named exports only; one public function/type per file; small, focused files.
+- Use `type` for data shapes; `interface` for implementable contracts; prefer `readonly`.
+- Pure domain/application functions: no env or framework reads inside.
+- No magic values; use constants/value objects; Prettier + ESLint rules applied (imports ordered).
+- Error mapping: at edges, convert to RFC7807 with stable `details.code`.
+- DTOs follow JSON `camelCase` end‑to‑end.
+
+# Language mode
+- TS `strict` on; no `any`, no `// @ts-ignore` (use `satisfies`, narrow types).
+- **Named exports only**. No default exports.
+- Prefer `type` aliases over `interface` for data shapes; use `interface` for implementable contracts.
+- Use `readonly` and `const` aggressively; no mutable exports.
+ - DTOs mirror JSON `camelCase` naming end‑to‑end.
+
+# Functions
+- One public function per file. Private helper(s) allowed; extract if > ~40 lines or reused.
+- Prefer pure functions; don’t read env/config inside domain or application layers.
+- Each function should have a single reason to change; if branching on type/variant, extract polymorphism.
+
+# Errors & results
+- Domain/application layers return `Result<T, E>` or typed exceptions mapped at the edges.
+- Throw only at interface/infrastructure boundaries; map to HTTP codes/messages there.
+ - When mapping to HTTP, emit RFC7807 Problem Details with stable `details.code`.
+
+# Style
+- Prettier formatting; ESLint with import ordering and boundary rules.
+- Avoid magic numbers/strings; lift to constants with meaningful names.
+- Logging is structured (JSON‑like objects); never log secrets or full tokens.
+
+# Testing hooks
+- Export factories/builders for entities and DTOs from test utils; avoid brittle snapshot tests.

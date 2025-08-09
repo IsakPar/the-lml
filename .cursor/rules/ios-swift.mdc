@@ -1,0 +1,26 @@
+---
+description: "iOS feature architecture (MVVM + Clean), file size, and testing."
+globs:
+  - "ios/**"
+  - "**/*.swift"
+alwaysApply: false
+---
+
+## How to apply in PR review
+- Feature modules follow MVVM + Clean structure with clear boundaries; one public type per file.
+- SwiftLint/SwiftFormat enforced; DI used instead of singletons.
+- Tests use fast fakes; minimal snapshot tests for stable UI only.
+- Platform targets: last two major OS versions; ensure build settings reflect this.
+- Offline cache keeps tickets indefinitely; verify logout purges local ticket data.
+
+# Structure
+- Feature modules: `FeatureX` with `Domain`, `UseCases`, `ViewModels`, `Views`, `Gateways`.
+- One public type per file; internal helpers private.
+- SwiftLint + SwiftFormat; avoid singletons except DI container.
+
+# Testing
+- XCTest with fast fakes; snapshot tests for UI only when stable.
+
+# Platform & data
+- Support last two major OS versions (iOS and Android). Confirm per mobile release.
+- Offline cache: retain tickets indefinitely; purge on logout.

@@ -1,0 +1,111 @@
+---
+description: "Project-wide principles and guardrails (DDD + Clean Architecture)."
+alwaysApply: true
+---
+
+## How to apply in PR review
+- Verify layer boundaries: `domain` has no framework imports; `application` depends only on `domain`; `interface` only on `application`; `infrastructure` implements ports.
+- One public export per file; files are focused (≤200 LOC). No cross‑context deep imports.
+- Contracts: JSON `camelCase`; errors are RFC7807 with `details.code`; endpoints under `/api/v1/...`; no breaking changes in `v1`.
+- Idempotency: all writes accept `Idempotency-Key` and are deduped.
+- Security: input validation at edges; no secrets in code; least privilege enforced.
+- Observability: correlationId propagation; structured logs; key metrics/traces added where it matters.
+- Performance/data: Postgres is source of truth; Redis only for locks/cache.
+- Seating: hold TTL 120s + one 60s extension; fencing tokens/version checks enforced; baseline rate limits applied (holds 10/min/user, auth 20/min/IP).
+- Roles: privileged paths require `OrganizerAdmin`/`Support`/`SuperAdmin` appropriately.
+
+# Project principles
+
+- Services are organized by **bounded context**. Share code only via small, versioned packages. No deep cross-context imports.
+- **Clean Architecture** layers per service: `domain` (pure), `application` (use cases, ports), `interface` (HTTP/RPC/CLI), `infrastructure` (adapters). Dependencies point inward only.
+- **One public export per file.** Keep private helpers local. Extract when a helper grows or is reused.
+- **Functional core, imperative shell.** Side effects live at the edges.
+- **CQS**: commands change state and are idempotent; queries are side-effect free.
+- Prefer small diffs and steady flow. No large refactors mixed with feature work.
+
+# Code conventions
+
+- TypeScript `strict` everywhere. Avoid `any`. Avoid `// @ts-ignore`. Use proper narrowing or `satisfies`.
+- **Named exports only.** No default exports.
+- Files should be focused and short. Aim for ≤200 LOC. Split by responsibility.
+- Naming: explicit and stable. No abbreviations that hide meaning.
+- No magic values. Lift to constants or value objects.
+- Domain and application layers are framework-free. No env reads, no network, no DB in those layers.
+
+# Architecture rules
+
+- `domain` imports nothing from other layers or frameworks.
+- `application` imports only from `domain`. Define **ports** (interfaces) for external dependencies here.
+- `interface` depends on `application` and is the only place that touches HTTP, CLI, schedulers, or message consumers.
+- `infrastructure` implements ports defined in `application`. Compose at a single entrypoint.
+- Cross-context comms use events or versioned HTTP/RPC. No direct imports between contexts.
+
+# Contracts and APIs
+
+- External dependencies and integrations are modeled as **ports**. Implement adapters in `infrastructure`.
+- Use DTOs at the boundaries. Map to and from domain types explicitly.
+- JSON payloads use `camelCase` everywhere.
+- Errors follow RFC7807 Problem Details with optional `details` for codes/validation.
+- Public HTTP surface is versioned under `/api/v1/...`. Changes in `v1` are backward‑compatible only; breaking changes go to `v2`.
+- Idempotent writes accept and honor `Idempotency-Key`.
+
+# Errors and results
+
+- Domain/application return `Result<T, E>`-style outcomes or explicit error types. Avoid throwing in core logic.
+- Translate errors to HTTP status codes or message NACKs only at the edge.
+- Every error path is observable with a minimal, structured log entry.
+ - HTTP errors emitted as RFC7807 with stable `type`, human `title`, `status`, and machine `details.code`.
+
+# Security and reliability
+
+- No secrets in code. Validate config at startup and fail fast.
+- Validate and sanitize all external input at the **interface** boundary.
+- Idempotency for all writes. Accept and honor an Idempotency-Key or dedupe by natural key.
+- Retries use exponential backoff with jitter. Cap attempts and emit metrics.
+- Least privilege for all credentials. Never log PII or full tokens.
+ - Seat locking uses fenced tokens: Redis issues a lock token; Postgres `event_seats.version` is incremented; updates validate token/version to reject stale actors.
+ - Rate limits (initial): holds 10/min/user, auth 20/min/IP; tune via config and load tests.
+ - Roles baseline: `User`, `OrganizerAdmin`, `Support`, `SuperAdmin`.
+
+# Observability
+
+- Correlation ID is created on entry and propagated everywhere.
+- Structured logs only. Include `service`, `context`, `correlationId`, `event`, `severity`, and key fields.
+- Emit counters for requests, errors, retries. Use histograms for latency.
+- Trace external calls with spans. Tag target, status, retries.
+ - SLOs (initial): p99 `POST /seats/hold` ≤ 150ms; p99 `POST /orders` ≤ 600ms (server time); p99 webhook→confirmed ≤ 2s.
+
+# Testing strategy
+
+- Triangle shape: many unit tests (domain/application), fewer integration tests (ports/adapters), very few e2e happy paths.
+- Deterministic tests. No real time, RNG, or network. Use fakes or test containers.
+- Every bug fix starts with a failing test. Keep snapshots for stable UI only.
+
+# Performance and data
+
+- Postgres is source of truth. Redis is cache only. Keys are namespaced and bounded.
+- Protect hot paths with simple budgets: handler p95 under target, external call counts explicit.
+ - Seat hold policy: 120s initial TTL; single 60s extension allowed before expiry. Centralized config with per‑event overrides.
+
+# Git and CI
+
+- Conventional Commits. One logical change per PR.
+- CI blocks on: build, typecheck, lint, tests with coverage thresholds, dependency audit, and size/dep diff.
+- No skipped tests on main. Flaky tests are either fixed or quarantined with an issue.
+
+# Definition of Done (apply per change)
+
+- [ ] Code follows the layer boundaries and one-public-export-per-file rule.
+- [ ] Types are strict. No `any`, no `@ts-ignore` without justification in code comments.
+- [ ] Ports defined for new external dependencies. Adapters live in `infrastructure`.
+- [ ] Tests added or updated. New behavior covered. Regression test for any bug fix.
+- [ ] Logs, metrics, and traces added where it matters.
+- [ ] Docs or ADR updated if architecture changed. Changelog updated if public contract changed.
+
+# How Cursor should work here
+
+- Read existing code, types, and contracts first. Do not invent APIs.
+- Propose **minimal diffs** scoped to the request. Do not refactor unrelated code.
+- If a change crosses a bounded context or breaks a contract, stop and propose an RFC with impact and options.
+- Always update or scaffold tests with changes. Provide test names and Given/When/Then structure.
+- Ask targeted questions only when information is missing and cannot be inferred from the repo.

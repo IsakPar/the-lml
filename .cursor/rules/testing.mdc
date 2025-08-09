@@ -1,0 +1,35 @@
+---
+description: "Testing strategy, coverage, and conventions."
+globs:
+  - "**/*.ts"
+  - "**/*.tsx"
+  - "**/*.test.*"
+  - "**/*.spec.*"
+alwaysApply: false
+---
+
+## How to apply in PR review
+- Tests added/updated for new/changed behavior; regression tests for bug fixes.
+- Unit tests for domain/application logic; integration tests for ports; few e2e happy paths only.
+- Deterministic: fake clock/ID; no real network/time/randomness; isolate via fakes/test containers.
+- Contract tests verify `/api/v1` routes, JSON `camelCase`, RFC7807 error envelopes.
+- Coverage meets targets (≥95% domain/app, ≥80% interface/infra).
+
+# Strategy
+- **Triangle**: lots of fast unit tests (domain/application), fewer integration tests (ports), very few e2e happy paths.
+- Every bug fix gets a regression test first.
+- Deterministic, isolated tests (no real network/dates/randomness).
+ - Contract tests verify `/api/v1` routing, JSON `camelCase`, and RFC7807 error envelopes.
+
+# Conventions
+- Name: `<file>.spec.ts` next to the code, or mirror folder in `tests/`.
+- Given/When/Then structure in test names.
+- Use fakes over mocks; if mocking, mock ports not internals.
+
+# Coverage (targets)
+- Domain & application ≥95% stmt/branch.
+- Interface/infrastructure ≥80% stmt/branch.
+
+# Infra
+- Provide helpers: fake clock, seeded RNG, test containers (or in‑mem doubled adapters) for db/cache/queues.
+ - Provide OpenAPI schema validation for responses; include a builder for RFC7807 objects in tests.
