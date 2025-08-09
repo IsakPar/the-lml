@@ -122,7 +122,7 @@ export async function registerInventoryRoutes(app: FastifyInstance) {
     const holdId = `hold_${owner}`;
     const holdToken = `${version}:${owner}`; // fencing token
     const payload = { hold_id: holdId, hold_token: holdToken, expires_at: expiresAt, seats: body.seats.map((s) => ({ seat_id: s, status: 'held' })), trace_id: req.ctx?.traceId };
-    // Broadcast SSE event
+    // Broadcast SSE event with enriched payload
     for (const s of body.seats) broadcast('seat.locked', { performance_id: body.performance_id, seat_id: s, expires_at: expiresAt, sales_channel_id: body.sales_channel_id });
     // Idempotency commit (cache successful 201)
     const headersHash = 'h0';
@@ -257,8 +257,8 @@ export async function registerInventoryRoutes(app: FastifyInstance) {
       await idemStore.commit(storeKey, { status: 200, headersHash, bodyHash: respHash, responseBody: JSON.stringify(payload) }, 6 * 3600);
       return reply.code(200).send(payload);
     }
-    // Broadcast SSE event
-    broadcast('seat.released', { performance_id: perfId, seat_id: seatId });
+    // Broadcast SSE event with enriched payload
+    broadcast('seat.released', { performance_id: perfId, seat_id: seatId, sales_channel_id: req.query?.sales_channel_id, released_at: new Date().toISOString() });
     await idemStore.commit(storeKey, { status: 204, headersHash: 'h0', bodyHash: 'b0', responseBody: '' }, 6 * 3600);
     return reply.code(204).send();
   });
