@@ -1,5 +1,6 @@
 import Fastify from 'fastify';
 import { readyzHandler } from './health/ready.js';
+import { registerHttpMetrics } from './health/metrics.js';
 import { serializeMetrics } from '../../../packages/metrics/src/index.js';
 import { registerRequestContext } from './middleware/requestContext.js';
 import { registerProblemHandler } from './middleware/problem.js';
@@ -24,6 +25,7 @@ async function main() {
   // Register base middleware
   registerRequestContext(app);
   registerProblemHandler(app);
+  registerHttpMetrics(app);
   registerAuth(app);
 
   // Mount v1 routes

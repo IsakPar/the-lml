@@ -4,7 +4,7 @@ import { getDatabase } from '@thankful/database';
 import { createClient as createRedisClient } from 'redis';
 import { metrics } from '../../../../../packages/metrics/src/index.js';
 import { problem } from '../../middleware/problem.js';
-import { rateLimit } from '../../middleware/rateLimit.js';
+import { createRateLimitMiddleware } from '@thankful/ratelimit';
 import { broadcast } from '../../utils/sse.js';
 import { createIdemStore } from '../../../../../packages/idempotency/src/store.js';
 import { canonicalHash } from '../../../../../packages/idempotency/src/index.js';
@@ -62,7 +62,8 @@ export async function registerInventoryRoutes(app: FastifyInstance) {
   }
 
   // POST /v1/holds
-  app.post('/v1/holds', { preHandler: rateLimit(10, 60) }, async (req: any, reply) => {
+  const rlMutating = createRateLimitMiddleware({ limit: 10, windowSeconds: 60 });
+  app.post('/v1/holds', { preHandler: rlMutating as any }, async (req: any, reply) => {
     // Require inventory scope
     const guard = (app as any).requireScopes?.(['inventory.holds:write']);
     if (guard) {
@@ -143,7 +144,7 @@ export async function registerInventoryRoutes(app: FastifyInstance) {
   });
 
   // PATCH /v1/holds (extend single seat hold for MVP)
-  app.patch('/v1/holds', { preHandler: rateLimit(10, 60) }, async (req: any, reply) => {
+  app.patch('/v1/holds', { preHandler: rlMutating as any }, async (req: any, reply) => {
     const guard = (app as any).requireScopes?.(['inventory.holds:write']);
     if (guard) {
       const resp = await guard(req, reply);
@@ -215,7 +216,7 @@ export async function registerInventoryRoutes(app: FastifyInstance) {
   });
 
   // DELETE /v1/holds/:hold_id (demo: release single seat provided via query)
-  app.delete('/v1/holds/:holdId', { preHandler: rateLimit(10, 60) }, async (req: any, reply) => {
+  app.delete('/v1/holds/:holdId', { preHandler: rlMutating as any }, async (req: any, reply) => {
     const guard = (app as any).requireScopes?.(['inventory.holds:write']);
     if (guard) {
       const resp = await guard(req, reply);

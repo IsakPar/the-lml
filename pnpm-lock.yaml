@@ -181,6 +181,9 @@ importers:
       fastify:
         specifier: ^4.28.1
         version: 4.29.1
+      redis:
+        specifier: ^4.6.7
+        version: 4.7.1
 
   packages/result: {}
 

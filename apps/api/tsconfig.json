@@ -8,7 +8,9 @@
     "baseUrl": ".",
     "paths": {
       "@platform/api": ["../../packages/platform/api/src/index.ts"],
-      "@thankful/database": ["../../packages/database/src/index.ts"]
+      "@thankful/database": ["../../packages/database/src/index.ts"],
+      "@thankful/metrics": ["../../packages/metrics/src/index.ts"],
+      "@thankful/ratelimit": ["../../packages/ratelimit/src/index.ts"]
     }
   },
   "include": ["src"],
@@ -16,7 +18,8 @@
     { "path": "../../packages/platform/api" },
     { "path": "../../services/inventory" },
     { "path": "../../packages/idempotency" },
-    { "path": "../../packages/metrics" }
+    { "path": "../../packages/metrics" },
+    { "path": "../../packages/ratelimit" }
   ]
 }
 

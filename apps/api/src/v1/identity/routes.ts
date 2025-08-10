@@ -2,11 +2,11 @@ import type { FastifyInstance } from 'fastify';
 import { JwtService } from '../../utils/jwt.js';
 import { getDatabase } from '@thankful/database';
 import { problem } from '../../middleware/problem.js';
-import { rateLimitByKey } from '../../middleware/rateLimit.js';
+import { createRateLimitMiddleware } from '@thankful/ratelimit';
 
 export async function registerIdentityRoutes(app: FastifyInstance) {
   // Tighter limiter for password grant (per user/IP)
-  const loginLimiter = rateLimitByKey(5, 60, (req: any) => `login:${req.body?.username || ''}:${req.ip}`);
+  const loginLimiter = createRateLimitMiddleware({ limit: 5, windowSeconds: 60, keyFn: (req: any) => `login:${req.body?.username || ''}:${req.ip}` });
   const jwt = new JwtService();
 
   // OAuth2.1 token endpoint (simplified: password/client_credentials for MVP)
