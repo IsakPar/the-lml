@@ -29,27 +29,29 @@ struct LoginView: View {
   }
 
   func login() {
-    guard let url = URL(string: (ProcessInfo.processInfo.environment["API_BASE_URL"] ?? "http://localhost:3000") + "/v1/oauth/token") else { return }
     isLoading = true
     message = nil
-    var req = URLRequest(url: url)
-    req.httpMethod = "POST"
-    req.addValue("application/json", forHTTPHeaderField: "Content-Type")
-    let body: [String: Any] = ["grant_type": "password", "username": username, "password": password]
-    req.httpBody = try? JSONSerialization.data(withJSONObject: body)
-    let task = URLSession.shared.dataTask(with: req) { data, resp, _ in
-      DispatchQueue.main.async {
-        self.isLoading = false
-        guard let http = resp as? HTTPURLResponse, let data = data else { self.message = "Network error"; return }
-        if http.statusCode == 200, let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any], let token = obj["access_token"] as? String {
-          self.appState.accessToken = token
+    Task { @MainActor in
+      do {
+        let base = URL(string: ProcessInfo.processInfo.environment["API_BASE_URL"] ?? "http://localhost:3000")!
+        let client = ApiClient(baseURL: base)
+        let payload = ["grant_type": "password", "username": username, "password": password]
+        let data = try JSONSerialization.data(withJSONObject: payload)
+        let (resp, _) = try await client.request(path: "/v1/oauth/token", method: "POST", body: data)
+        let obj = try JSONSerialization.jsonObject(with: resp) as? [String: Any]
+        let token = obj?["access_token"] as? String
+        if let t = token {
+          _ = KeychainHelper.save(key: "access_token", data: Data(t.utf8))
+          self.appState.accessToken = t
           self.appState.isAuthenticated = true
-        } else {
-          self.message = "Login failed (\(http.statusCode))"
-        }
+        } else { self.message = "Invalid response" }
+      } catch let e as ApiError {
+        self.message = e.localizedDescription
+      } catch {
+        self.message = "Unexpected error"
       }
+      self.isLoading = false
     }
-    task.resume()
   }
 }
 

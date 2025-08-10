@@ -24,21 +24,15 @@ struct MeView: View {
 
   func load() {
     guard let token = appState.accessToken else { return }
-    guard let url = URL(string: (ProcessInfo.processInfo.environment["API_BASE_URL"] ?? "http://localhost:3000") + "/v1/users/me") else { return }
-    var req = URLRequest(url: url)
-    req.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-    req.addValue("00000000-0000-0000-0000-000000000001", forHTTPHeaderField: "X-Org-ID")
-    let task = URLSession.shared.dataTask(with: req) { data, resp, _ in
-      DispatchQueue.main.async {
-        guard let http = resp as? HTTPURLResponse, let data = data else { self.error = "Network error"; return }
-        if http.statusCode == 200, let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-          self.me = obj
-        } else {
-          self.error = "Failed: \(http.statusCode)"
-        }
-      }
+    let base = URL(string: ProcessInfo.processInfo.environment["API_BASE_URL"] ?? "http://localhost:3000")!
+    let client = ApiClient(baseURL: base, accessToken: token, orgId: "00000000-0000-0000-0000-000000000001")
+    Task { @MainActor in
+      do {
+        let (data, _) = try await client.request(path: "/v1/users/me")
+        if let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any] { self.me = obj }
+      } catch let e as ApiError { self.error = e.localizedDescription }
+      catch { self.error = "Unexpected error" }
     }
-    task.resume()
   }
 }
 
