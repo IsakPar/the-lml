@@ -11,7 +11,7 @@ final class ApiClient {
     self.orgId = orgId
   }
 
-  func request(path: String, method: String = "GET", body: Data? = nil, idempotencyKey: String? = nil) async throws -> (Data, HTTPURLResponse) {
+  func request(path: String, method: String = "GET", body: Data? = nil, idempotencyKey: String? = nil, headers: [String: String]? = nil) async throws -> (Data, HTTPURLResponse) {
     var url = baseURL
     url.append(path: path)
     var req = URLRequest(url: url)
@@ -24,6 +24,7 @@ final class ApiClient {
     if let token = accessToken { req.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
     if let org = orgId { req.addValue(org, forHTTPHeaderField: "X-Org-ID") }
     req.addValue("iOS", forHTTPHeaderField: "X-Client")
+    headers?.forEach { k, v in req.addValue(v, forHTTPHeaderField: k) }
 
     let (data, resp) = try await URLSession.shared.data(for: req)
     guard let http = resp as? HTTPURLResponse else { throw ApiError.network("invalid response") }
