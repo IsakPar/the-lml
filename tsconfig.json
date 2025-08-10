@@ -10,6 +10,7 @@
     { "path": "packages/ratelimit" },
     { "path": "packages/shared" },
     { "path": "packages/events" },
+    { "path": "packages/verification" },
     { "path": "packages/database" },
     { "path": "packages/container" },
     { "path": "packages/notifications" },
@@ -41,6 +42,7 @@
       "@thankful/database": ["packages/database/src/index.ts"],
       "@thankful/container": ["packages/container/src/index.ts"],
       "@thankful/notifications": ["packages/notifications/src/index.ts"],
+      "@thankful/verification": ["packages/verification/src/index.ts"],
       "@thankful/ratelimit": ["packages/ratelimit/src/index.ts"]
     },
     "outDir": "./dist"
