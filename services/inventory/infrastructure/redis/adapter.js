@@ -2,7 +2,7 @@ import { createClient } from 'redis';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
-import { metrics } from '../../../../packages/metrics/src/metrics.js';
+import { metrics } from '../../../../packages/metrics/src/index.js';
 export class RedisSeatLockAdapter {
     client;
     shaByName = {

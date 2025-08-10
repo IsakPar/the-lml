@@ -12,6 +12,7 @@
     { "path": "packages/events" },
     { "path": "packages/database" },
     { "path": "packages/container" },
+    { "path": "packages/notifications" },
     { "path": "services/identity" },
     { "path": "services/ticketing" },
     { "path": "services/payments" },
@@ -39,6 +40,7 @@
       "@thankful/events": ["packages/events/src/index.ts"],
       "@thankful/database": ["packages/database/src/index.ts"],
       "@thankful/container": ["packages/container/src/index.ts"],
+      "@thankful/notifications": ["packages/notifications/src/index.ts"],
       "@thankful/ratelimit": ["packages/ratelimit/src/index.ts"]
     },
     "outDir": "./dist"

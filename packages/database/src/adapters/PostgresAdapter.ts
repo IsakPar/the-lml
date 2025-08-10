@@ -116,7 +116,9 @@ export class PostgresAdapter {
    */
   async withTenant<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
     return this.transaction(async (client) => {
-      await client.query("SET LOCAL app.tenant_id = $1", [tenantId]);
+      // Enforce RLS and set tenant GUC within transaction scope
+      await client.query("SET LOCAL row_security = on");
+      await client.query("SELECT set_config('app.tenant_id', $1, true)", [tenantId]);
       return fn(client);
     });
   }

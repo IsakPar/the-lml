@@ -26,6 +26,7 @@ export function registerAuth(app: FastifyInstance) {
       'GET /v1/health',
       'GET /v1/status',
       'GET /v1/time',
+      'POST /v1/payments/webhook/stripe',
     ]);
     const key = `${req.method} ${req.url}`.split('?')[0];
     if (publicWhitelist.has(key)) return;

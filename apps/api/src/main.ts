@@ -9,6 +9,8 @@ import { registerVenueRoutes } from './v1/venues/routes.js';
 import { registerInventoryRoutes } from './v1/inventory/routes.js';
 import { registerAvailabilityRoutes } from './v1/inventory/availability.js';
 import { registerIdentityRoutes } from './v1/identity/routes.js';
+import { registerOrdersRoutes } from './v1/orders/routes.js';
+import { registerPaymentsRoutes } from './v1/payments/routes.js';
 import { registerAuth } from './middleware/auth.js';
 import { MongoClient } from 'mongodb';
 
@@ -36,9 +38,16 @@ async function main() {
   const mongo = new MongoClient(String(process.env.MONGODB_URL || 'mongodb://localhost:27017/thankful'));
   await mongo.connect();
   (app as any).mongo = mongo;
+  // Ensure essential Mongo indexes (idempotent)
+  try {
+    const db = mongo.db();
+    await db.collection('seatmaps').createIndex({ orgId: 1, _id: 1 });
+  } catch {}
   await registerVenueRoutes(app, { mongo });
   await registerInventoryRoutes(app);
   await registerAvailabilityRoutes(app);
+  await registerOrdersRoutes(app);
+  await registerPaymentsRoutes(app);
   // eslint-disable-next-line no-console
   console.log('routes mounted: /livez, /readyz, /metrics, /v1/*');
   const port = Number(process.env.PORT ?? 3000);

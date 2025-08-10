@@ -16,7 +16,9 @@
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint .",
     "verify": "pnpm -w lint && pnpm -w build && pnpm -w typecheck",
-    "dev:api": "tsx apps/api/src/main.ts"
+    "dev:api": "tsx apps/api/src/main.ts",
+    "test": "vitest run --reporter=dot",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@types/jsonwebtoken": "^9.0.10",
@@ -28,10 +30,14 @@
   },
   "devDependencies": {
     "@types/node": "^20.14.9",
+    "@types/nodemailer": "^6.4.17",
     "@types/pg": "^8.11.6",
+    "@types/supertest": "^6.0.3",
+    "supertest": "^7.0.0",
     "tsc-alias": "^1.8.16",
     "tsconfig-paths": "^4.2.0",
     "tsx": "^4.16.2",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^2.0.5"
   }
 }

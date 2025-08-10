@@ -19,7 +19,8 @@
     { "path": "../../services/inventory" },
     { "path": "../../packages/idempotency" },
     { "path": "../../packages/metrics" },
-    { "path": "../../packages/ratelimit" }
+    { "path": "../../packages/ratelimit" },
+    { "path": "../../packages/notifications" }
   ]
 }
 
