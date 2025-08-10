@@ -20,6 +20,7 @@ export function rateLimit(maxPerWindow: number, windowSeconds: number) {
         .header('X-RateLimit-Limit', bucket.limit)
         .header('X-RateLimit-Remaining', 0)
         .header('X-RateLimit-Reset', resetSec)
+        .header('Retry-After', resetSec)
         .code(429)
         .send({ type: 'urn:thankful:rate_limit:exceeded', title: 'rate_limit', status: 429, detail: `retry in ${resetSec}s`, trace_id: req.ctx?.traceId });
       return reply;
@@ -49,6 +50,7 @@ export function rateLimitByKey(maxPerWindow: number, windowSeconds: number, keyF
         .header('X-RateLimit-Limit', bucket.limit)
         .header('X-RateLimit-Remaining', 0)
         .header('X-RateLimit-Reset', resetSec)
+        .header('Retry-After', resetSec)
         .code(429)
         .send({ type: 'urn:thankful:rate_limit:exceeded', title: 'rate_limit', status: 429, detail: `retry in ${resetSec}s`, trace_id: (req as any).ctx?.traceId });
       return reply;

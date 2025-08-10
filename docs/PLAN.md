@@ -12,7 +12,7 @@ This document tracks all issues identified in the audit and our concrete plan to
 ## 1) Security: Postgres Row‑Level Security (RLS)
 - Priority: P1
 - Owner: Platform
-- Status: PARTIAL — `withTenant(tenantId, fn)` added and initial RLS migration for `identity.users`; extend to all tenant tables and adopt in repos.
+- Status: PARTIAL — Identity RLS enforced (users + aux tables). RLS scaffolds added for venues/inventory/orders/payments. Next: finalize real schemas and adopt `withTenant` + tenant_id INSERTs across repos.
 - Why: DB‑level tenant isolation safety net; prevents cross‑org data leaks if app code misses filters.
 - Plan:
   - Enable RLS on all tenant tables (identity, venues, inventory, orders, payments).
@@ -73,28 +73,25 @@ This document tracks all issues identified in the audit and our concrete plan to
 ## 6) Scope/Authorization checks
 - Priority: P1
 - Owner: Platform
-- Status: Holds routes guarded with `inventory.holds:write`.
+- Status: DONE — Holds routes guarded with `inventory.holds:write`; availability and venues guarded with `inventory.read`/`venues.read`; `GET /v1/users/me` guarded with `identity.me.read`. Password grant now issues `identity.me.read` for user tokens.
 - Plan:
-  - Declare required scopes per route group (venues.read, identity.me.read, inventory.holds:write, etc.).
-  - Ensure client_credentials vs user tokens enforce different capabilities.
+  - Extend scopes as new routes land.
 - DoD: Requests without scope return 403; happy‑path succeeds with scope.
 - Tests: Insufficient scope → 403; proper scope → 2xx.
- - Status: PARTIAL — Holds guarded; extend to other protected routes.
 
 ## 7) OAuth2.1 polish (password grant, brute‑force)
 - Priority: P2
 - Owner: Identity, Platform
-- Status: PARTIAL — per-user/IP RL added on password grant; `iss`/`aud` enforced. PKCE plan + alg allowlist pending.
+- Status: PARTIAL → NOW DONE for alg allowlist and RL headers — password grant pre‑handler uses per‑user/IP limiter; JWT signing/verification restricted to HS256; rate limiting emits `Retry-After`.
 - Plan:
-  - Add per‑user/IP rate limit on `/v1/oauth/token` password grant; include `Retry-After`.
-  - Validate JWT `iss`/`aud`/`alg` allowlist; plan Auth Code + PKCE to replace password grant for non‑first‑party.
+  - Replace password grant with Auth Code + PKCE for non‑first‑party later.
 - DoD: Token endpoint throttled and returns standard headers; JWT validation hardened.
 - Tests: RL triggers on repeated bad passwords; valid grants unaffected.
 
 ## 8) Rate limiting (headers, per‑route, distributed)
 - Priority: P2
 - Owner: Platform
-- Status: PARTIAL — Global limiter keys by stable route URL; X‑RateLimit headers present; dedicated login limiter added. Per‑route budgets + Redis backend pending.
+- Status: PARTIAL — X‑RateLimit headers present and now `Retry-After` included on 429. Per‑route budgets + Redis backend still pending for multi‑instance.
 - Plan:
   - Per‑route budgets (stricter for token issuance and mutating routes); key by `{orgId|userId}+route+method`.
   - Move counters to Redis for multi‑instance.
@@ -104,10 +101,9 @@ This document tracks all issues identified in the audit and our concrete plan to
 ## 9) Observability (metrics/tracing)
 - Priority: P3
 - Owner: Platform
-- Status: PENDING — add Prometheus metrics and basic OpenTelemetry spans.
+- Status: PARTIAL — Prometheus registry exported at `/metrics`; added counters for idempotency and seat lock flows; tracing still pending.
 - Plan:
-  - Prometheus `prom-client`: HTTP request counters and latency histograms per route; domain counters (holds ok/conflict, idem begin/commit/hit).
-  - OpenTelemetry: Root span per request; spans for Redis/Mongo/PG.
+  - Add HTTP request counters and latency histograms; basic OpenTelemetry spans.
   - Dashboards + basic alerts (p95 latency, error rate, holds conflict rate).
 - DoD: `/metrics` exposes above; traces produced locally (flagged in prod later).
 - Tests: Scrape `/metrics` shows counters; manual trace check.

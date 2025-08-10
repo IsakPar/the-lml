@@ -26,6 +26,7 @@ export class JwtService {
     const options: SignOptions = {
       issuer: this.issuer,
       audience: this.audience,
+      algorithm: 'HS256',
       expiresIn,
     };
     return jwt.sign({ ...claims, tokenType: 'access' }, this.secret as Secret, options);
@@ -35,6 +36,7 @@ export class JwtService {
     const options: SignOptions = {
       issuer: this.issuer,
       audience: this.audience,
+      algorithm: 'HS256',
       expiresIn,
     };
     return jwt.sign({ ...claims, tokenType: 'refresh' }, this.secret as Secret, options);
@@ -44,6 +46,7 @@ export class JwtService {
     return jwt.verify(token, this.secret as Secret, {
       issuer: this.issuer,
       audience: this.audience,
+      algorithms: ['HS256']
     }) as JwtClaims;
   }
 }

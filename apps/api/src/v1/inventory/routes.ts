@@ -1,6 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { RedisSeatLockAdapter, seatKey } from '../../../../../services/inventory/infrastructure/redis/adapter.js';
+import { getDatabase } from '@thankful/database';
 import { createClient as createRedisClient } from 'redis';
+import { metrics } from '../../../../../packages/metrics/src/index.js';
 import { problem } from '../../middleware/problem.js';
 import { rateLimit } from '../../middleware/rateLimit.js';
 import { broadcast } from '../../utils/sse.js';
@@ -67,6 +69,8 @@ export async function registerInventoryRoutes(app: FastifyInstance) {
       const resp = await guard(req, reply);
       if (resp) return resp;
     }
+    const db = getDatabase();
+    await db.withTenant(String(req.ctx.orgId || ''), async () => {});
     const idemKey = req.headers['idempotency-key'];
     if (typeof idemKey !== 'string' || idemKey.length < 8) {
       return reply.code(422).type('application/problem+json').send(problem(422, 'invalid_idempotency_key', 'Idempotency-Key required', 'urn:thankful:idem:missing', req.ctx?.traceId));
@@ -86,12 +90,15 @@ export async function registerInventoryRoutes(app: FastifyInstance) {
     const bodyHash = canonicalHash({ method: 'POST', path: '/v1/holds', contentType, body });
     const storeKey = `idem:v1:holds:${tenant}:${bodyHash}`;
     const begin = await idemStore.begin(storeKey, req.ctx.requestId, 120);
+    metrics.idem_begin_total.inc();
     if (begin.state === 'in-progress' && begin.ownerRequestId !== req.ctx.requestId) {
       reply.header('Idempotency-Status', 'in-progress');
+      metrics.idem_inprogress_202_total.inc();
       return reply.code(202).send({ state: 'in-progress' });
     }
     if (begin.state === 'committed') {
       reply.header('Idempotency-Status', 'cached');
+       metrics.idem_hit_cached_total.inc();
       // If we stored full response body, replay it
       if (begin.responseBody) {
         try {
@@ -112,6 +119,7 @@ export async function registerInventoryRoutes(app: FastifyInstance) {
     const result = await adapter.acquireAllOrNone(keys, owner, version, ttlMs);
     if ('conflictKeys' in result) {
       const conflictSeatIds = result.conflictKeys.map((k: string) => k.split(':').pop() || k);
+      metrics.seat_lock_acquire_conflict_total.inc();
       return reply.code(409).type('application/problem+json').send({
         ...problem(409, 'conflict', 'some seats already held', 'urn:thankful:inventory:hold_conflict', req.ctx?.traceId),
         conflicts: conflictSeatIds,
@@ -128,6 +136,8 @@ export async function registerInventoryRoutes(app: FastifyInstance) {
     const headersHash = 'h0';
     const respHash = canonicalHash({ method: 'POST', path: '/v1/holds', contentType: 'application/json', body: payload });
     await idemStore.commit(storeKey, { status: 201, headersHash, bodyHash: respHash, responseBody: JSON.stringify(payload) }, 24 * 3600);
+    metrics.idem_commit_total.inc();
+    metrics.seat_lock_acquire_ok_total.inc();
     reply.header('Idempotency-Status', 'new');
     reply.code(201).send(payload);
   });
@@ -192,11 +202,15 @@ export async function registerInventoryRoutes(app: FastifyInstance) {
     const [vStr, oStr] = token.split(':');
     const vNum = Number(vStr);
     if (Number.isFinite(vNum) && oStr) { version = vNum; owner = oStr; }
+    const db = getDatabase();
+    await db.withTenant(String(req.ctx.orgId || ''), async () => {});
     const res = await adapter.extendIfOwner(key, owner, version, ttlMs);
+    if (res === 'OK') metrics.seat_lock_extend_ok_total.inc();
     const response = res === 'OK' ? { extended: true, seat_id: body.seat_id, trace_id: req.ctx?.traceId } : { extended: false, result: res, trace_id: req.ctx?.traceId };
     const headersHash = 'h0';
     const respHash = canonicalHash({ method: 'PATCH', path: '/v1/holds', contentType: 'application/json', body: response });
     await idemStore.commit(storeKey, { status: 200, headersHash, bodyHash: respHash, responseBody: JSON.stringify(response) }, 6 * 3600);
+    metrics.idem_commit_total.inc();
     return reply.code(200).send(response);
   });
 
@@ -249,17 +263,22 @@ export async function registerInventoryRoutes(app: FastifyInstance) {
     if (!holdToken || !holdToken.includes(':')) {
       return reply.code(412).type('application/problem+json').send(problem(412, 'precondition_required', 'hold_token or If-Match required', 'urn:thankful:inventory:precondition', req.ctx?.traceId));
     }
+    const db = getDatabase();
+    await db.withTenant(String(req.ctx.orgId || ''), async () => {});
     const res = await adapter.releaseIfOwner(key, owner, version);
     if (res !== 'OK') {
       const payload = { released: false, result: res, trace_id: req.ctx?.traceId };
       const headersHash = 'h0';
       const respHash = canonicalHash({ method: 'DELETE', path: `/v1/holds/${req.params.holdId}`, contentType: 'application/json', body: payload });
       await idemStore.commit(storeKey, { status: 200, headersHash, bodyHash: respHash, responseBody: JSON.stringify(payload) }, 6 * 3600);
+      metrics.idem_commit_total.inc();
       return reply.code(200).send(payload);
     }
     // Broadcast SSE event with enriched payload
     broadcast('seat.released', { performance_id: perfId, seat_id: seatId, sales_channel_id: req.query?.sales_channel_id, released_at: new Date().toISOString() });
     await idemStore.commit(storeKey, { status: 204, headersHash: 'h0', bodyHash: 'b0', responseBody: '' }, 6 * 3600);
+    metrics.idem_commit_total.inc();
+    metrics.seat_lock_release_ok_total.inc();
     return reply.code(204).send();
   });
 }

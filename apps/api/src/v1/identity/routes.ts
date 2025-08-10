@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { JwtService } from '../../utils/jwt.js';
+import { getDatabase } from '@thankful/database';
 import { problem } from '../../middleware/problem.js';
 import { rateLimitByKey } from '../../middleware/rateLimit.js';
 
@@ -31,8 +32,8 @@ export async function registerIdentityRoutes(app: FastifyInstance) {
       }
       // Optional: apply a tighter rate limit policy in middleware later
       const userId = `usr_${Buffer.from(username).toString('hex').slice(0, 8)}`;
-      const accessToken = jwt.signAccess({ sub: userId, userId, orgId: req.ctx.orgId, role: 'user', permissions: [] });
-      const refreshToken = jwt.signRefresh({ sub: userId, userId, orgId: req.ctx.orgId, role: 'user', permissions: [] });
+      const accessToken = jwt.signAccess({ sub: userId, userId, orgId: req.ctx.orgId, role: 'user', permissions: ['identity.me.read'] });
+      const refreshToken = jwt.signRefresh({ sub: userId, userId, orgId: req.ctx.orgId, role: 'user', permissions: ['identity.me.read'] });
       return reply.send({ access_token: accessToken, refresh_token: refreshToken, token_type: 'Bearer', expires_in: 900 });
     }
 
@@ -41,17 +42,18 @@ export async function registerIdentityRoutes(app: FastifyInstance) {
 
   // Current user
   app.get('/v1/users/me', async (req: any, reply) => {
+    const guard = (app as any).requireScopes?.(['identity.me.read']);
+    if (guard) {
+      const resp = await guard(req, reply);
+      if (resp) return resp as any;
+    }
+    const db = getDatabase();
     if (!req.user?.userId) {
       return reply.code(401).type('application/problem+json').send(problem(401, 'unauthorized', 'no user context', 'urn:thankful:auth:unauthorized', req.ctx?.traceId));
     }
-    return reply.send({
-      user_id: req.user.userId,
-      role: req.user.role || 'user',
-      org_id: req.ctx.orgId,
-      brand_id: req.ctx.brandId,
-      sales_channel_id: req.ctx.salesChannelId,
-      trace_id: req.ctx?.traceId,
-    });
+    // Ensure tenant is set for any downstream repo calls (future repos)
+    await db.withTenant(String(req.ctx.orgId || ''), async () => {});
+    return reply.send({ user_id: req.user.userId, role: req.user.role || 'user', org_id: req.ctx.orgId, brand_id: req.ctx.brandId, sales_channel_id: req.ctx.salesChannelId, trace_id: req.ctx?.traceId });
   });
 }
 

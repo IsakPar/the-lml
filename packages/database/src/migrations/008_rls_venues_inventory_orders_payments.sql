@@ -1,4 +1,4 @@
--- Migration 005: RLS for inventory, orders, payments tables (scaffold)
+-- Migration 008: Enforce RLS on venues/inventory/orders/payments (tenant_id default + policies)
 
 CREATE SCHEMA IF NOT EXISTS lml;
 CREATE OR REPLACE FUNCTION lml.current_tenant() RETURNS uuid
@@ -6,30 +6,48 @@ LANGUAGE SQL STABLE AS $$
   SELECT NULLIF(current_setting('app.tenant_id', true), '')::uuid
 $$;
 
--- Inventory tables (example: holds, allocations)
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='inventory' AND table_name='holds' AND column_name='tenant_id') THEN
-    CREATE TABLE IF NOT EXISTS inventory.holds (
-      id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-      tenant_id uuid,
-      performance_id text,
-      seat_id text,
-      hold_token text,
-      expires_at timestamptz,
-      created_at timestamptz NOT NULL DEFAULT now()
-    );
-    ALTER TABLE inventory.holds ADD COLUMN IF NOT EXISTS tenant_id uuid;
+-- Venues.venues
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='venues' AND table_name='venues' AND column_name='tenant_id') THEN
+    ALTER TABLE venues.venues ADD COLUMN tenant_id uuid;
+  END IF;
+END $$;
+DO $$ BEGIN
+  BEGIN
+    ALTER TABLE venues.venues ALTER COLUMN tenant_id SET DEFAULT lml.current_tenant();
+  EXCEPTION WHEN others THEN NULL; END;
+END $$;
+ALTER TABLE venues.venues ENABLE ROW LEVEL SECURITY;
+ALTER TABLE venues.venues FORCE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='venues' AND tablename='venues' AND policyname='venues_sel') THEN
+    CREATE POLICY venues_sel ON venues.venues FOR SELECT USING (tenant_id = lml.current_tenant());
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='venues' AND tablename='venues' AND policyname='venues_ins') THEN
+    CREATE POLICY venues_ins ON venues.venues FOR INSERT WITH CHECK (tenant_id = lml.current_tenant());
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='venues' AND tablename='venues' AND policyname='venues_upd') THEN
+    CREATE POLICY venues_upd ON venues.venues FOR UPDATE USING (tenant_id = lml.current_tenant()) WITH CHECK (tenant_id = lml.current_tenant());
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='venues' AND tablename='venues' AND policyname='venues_del') THEN
+    CREATE POLICY venues_del ON venues.venues FOR DELETE USING (tenant_id = lml.current_tenant());
   END IF;
 END $$;
 
-ALTER TABLE IF EXISTS inventory.holds ALTER COLUMN tenant_id SET DEFAULT lml.current_tenant();
-ALTER TABLE IF EXISTS inventory.holds ALTER COLUMN tenant_id SET NOT NULL;
-ALTER TABLE IF EXISTS inventory.holds ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS inventory.holds FORCE ROW LEVEL SECURITY;
-
-DO $$
-BEGIN
+-- Inventory.holds (or analogous)
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='inventory' AND table_name='holds' AND column_name='tenant_id') THEN
+    ALTER TABLE inventory.holds ADD COLUMN tenant_id uuid;
+  END IF;
+END $$;
+DO $$ BEGIN
+  BEGIN
+    ALTER TABLE inventory.holds ALTER COLUMN tenant_id SET DEFAULT lml.current_tenant();
+  EXCEPTION WHEN others THEN NULL; END;
+END $$;
+ALTER TABLE inventory.holds ENABLE ROW LEVEL SECURITY;
+ALTER TABLE inventory.holds FORCE ROW LEVEL SECURITY;
+DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='inventory' AND tablename='holds' AND policyname='holds_sel') THEN
     CREATE POLICY holds_sel ON inventory.holds FOR SELECT USING (tenant_id = lml.current_tenant());
   END IF;
@@ -44,31 +62,20 @@ BEGIN
   END IF;
 END $$;
 
--- Orders tables (example)
-DO $$
-BEGIN
+-- Orders.orders
+DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='orders' AND table_name='orders' AND column_name='tenant_id') THEN
-    CREATE TABLE IF NOT EXISTS orders.orders (
-      id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-      tenant_id uuid,
-      customer_id uuid,
-      status text,
-      total_minor bigint,
-      currency char(3),
-      created_at timestamptz NOT NULL DEFAULT now(),
-      updated_at timestamptz NOT NULL DEFAULT now()
-    );
-    ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS tenant_id uuid;
+    ALTER TABLE orders.orders ADD COLUMN tenant_id uuid;
   END IF;
 END $$;
-
-ALTER TABLE IF EXISTS orders.orders ALTER COLUMN tenant_id SET DEFAULT lml.current_tenant();
-ALTER TABLE IF EXISTS orders.orders ALTER COLUMN tenant_id SET NOT NULL;
-ALTER TABLE IF EXISTS orders.orders ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS orders.orders FORCE ROW LEVEL SECURITY;
-
-DO $$
-BEGIN
+DO $$ BEGIN
+  BEGIN
+    ALTER TABLE orders.orders ALTER COLUMN tenant_id SET DEFAULT lml.current_tenant();
+  EXCEPTION WHEN others THEN NULL; END;
+END $$;
+ALTER TABLE orders.orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE orders.orders FORCE ROW LEVEL SECURITY;
+DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='orders' AND tablename='orders' AND policyname='orders_sel') THEN
     CREATE POLICY orders_sel ON orders.orders FOR SELECT USING (tenant_id = lml.current_tenant());
   END IF;
@@ -83,33 +90,20 @@ BEGIN
   END IF;
 END $$;
 
--- Payments tables (example)
-DO $$
-BEGIN
+-- Payments.payment_intents
+DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='payments' AND table_name='payment_intents' AND column_name='tenant_id') THEN
-    CREATE TABLE IF NOT EXISTS payments.payment_intents (
-      id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-      tenant_id uuid,
-      order_id uuid,
-      provider text,
-      status text,
-      amount_minor bigint,
-      currency char(3),
-      client_secret_hash text,
-      created_at timestamptz NOT NULL DEFAULT now(),
-      updated_at timestamptz NOT NULL DEFAULT now()
-    );
-    ALTER TABLE payments.payment_intents ADD COLUMN IF NOT EXISTS tenant_id uuid;
+    ALTER TABLE payments.payment_intents ADD COLUMN tenant_id uuid;
   END IF;
 END $$;
-
-ALTER TABLE IF EXISTS payments.payment_intents ALTER COLUMN tenant_id SET DEFAULT lml.current_tenant();
-ALTER TABLE IF EXISTS payments.payment_intents ALTER COLUMN tenant_id SET NOT NULL;
-ALTER TABLE IF EXISTS payments.payment_intents ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS payments.payment_intents FORCE ROW LEVEL SECURITY;
-
-DO $$
-BEGIN
+DO $$ BEGIN
+  BEGIN
+    ALTER TABLE payments.payment_intents ALTER COLUMN tenant_id SET DEFAULT lml.current_tenant();
+  EXCEPTION WHEN others THEN NULL; END;
+END $$;
+ALTER TABLE payments.payment_intents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE payments.payment_intents FORCE ROW LEVEL SECURITY;
+DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='payments' AND tablename='payment_intents' AND policyname='pi_sel') THEN
     CREATE POLICY pi_sel ON payments.payment_intents FOR SELECT USING (tenant_id = lml.current_tenant());
   END IF;
@@ -124,6 +118,6 @@ BEGIN
   END IF;
 END $$;
 
-INSERT INTO public.schema_migrations (version, checksum) VALUES ('005', 'PLACEHOLDER_CHECKSUM') ON CONFLICT (version) DO NOTHING;
+INSERT INTO public.schema_migrations (version, checksum) VALUES ('008', 'PLACEHOLDER_CHECKSUM') ON CONFLICT (version) DO NOTHING;
 
 

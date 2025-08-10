@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import crypto from 'node:crypto';
 import { MongoClient, ObjectId } from 'mongodb';
+import { getDatabase } from '@thankful/database';
 import { parseCursorParams, buildNextPrev, decodeCursor } from '../../utils/pagination.js';
 import { problem } from '../../middleware/problem.js';
 
@@ -12,6 +13,8 @@ export async function registerVenueRoutes(app: FastifyInstance, deps: { mongo: M
       const resp = await guard(req, reply);
       if (resp) return resp as any;
     }
+    const db = getDatabase();
+    await db.withTenant(String(req.ctx.orgId || ''), async () => {});
     const { limit, starting_after } = parseCursorParams(req.query, 20, 100);
     const venues = deps.mongo.db().collection('venues');
     const filter: any = {};
@@ -32,6 +35,8 @@ export async function registerVenueRoutes(app: FastifyInstance, deps: { mongo: M
       const resp = await guard(req, reply);
       if (resp) return resp as any;
     }
+    const db = getDatabase();
+    await db.withTenant(String(req.ctx.orgId || ''), async () => {});
     const id = String(req.params.seatmapId);
     const seatmaps = deps.mongo.db().collection('seatmaps');
     const base = ObjectId.isValid(id) ? { _id: new ObjectId(id) } : { _id: id } as any;

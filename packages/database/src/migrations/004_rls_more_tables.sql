@@ -8,15 +8,22 @@ LANGUAGE SQL STABLE AS $$
   SELECT NULLIF(current_setting('app.tenant_id', true), '')::uuid
 $$;
 
--- Venues table example
+-- Venues table example (create if missing)
 DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns 
     WHERE table_schema='venues' AND table_name='venues' AND column_name='tenant_id'
   ) THEN
-    -- If your schema uses orgId elsewhere, adapt to tenant_id or create a view; this is a placeholder
-    ALTER TABLE IF EXISTS venues.venues ADD COLUMN tenant_id uuid;
+    CREATE TABLE IF NOT EXISTS venues.venues (
+      id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+      tenant_id uuid,
+      name text,
+      tz text,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    );
+    ALTER TABLE venues.venues ADD COLUMN IF NOT EXISTS tenant_id uuid;
   END IF;
 END $$;
 

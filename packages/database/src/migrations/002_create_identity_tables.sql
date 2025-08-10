@@ -5,7 +5,7 @@
 CREATE SCHEMA IF NOT EXISTS identity;
 
 -- Users table with comprehensive profile support
-CREATE TABLE identity.users (
+CREATE TABLE IF NOT EXISTS identity.users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   email CITEXT UNIQUE NOT NULL,
   phone VARCHAR(20),
@@ -42,8 +42,22 @@ CREATE TABLE identity.users (
   CONSTRAINT users_name_not_empty CHECK (first_name != '' AND last_name != '')
 );
 
+-- If table already existed from prior bootstrap, add any missing columns
+ALTER TABLE identity.users ADD COLUMN IF NOT EXISTS email CITEXT;
+ALTER TABLE identity.users ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
+ALTER TABLE identity.users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);
+ALTER TABLE identity.users ADD COLUMN IF NOT EXISTS role VARCHAR(50) NOT NULL DEFAULT 'user';
+ALTER TABLE identity.users ADD COLUMN IF NOT EXISTS is_email_verified BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE identity.users ADD COLUMN IF NOT EXISTS is_phone_verified BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE identity.users ADD COLUMN IF NOT EXISTS first_name VARCHAR(50) NOT NULL DEFAULT '';
+ALTER TABLE identity.users ADD COLUMN IF NOT EXISTS last_name VARCHAR(50) NOT NULL DEFAULT '';
+ALTER TABLE identity.users ADD COLUMN IF NOT EXISTS date_of_birth DATE;
+ALTER TABLE identity.users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+ALTER TABLE identity.users ADD COLUMN IF NOT EXISTS preferences JSONB NOT NULL DEFAULT '{"notifications":{"email":true,"sms":true,"push":true},"timezone":"UTC","language":"en"}';
+ALTER TABLE identity.users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;
+
 -- User sessions with device tracking
-CREATE TABLE identity.user_sessions (
+CREATE TABLE IF NOT EXISTS identity.user_sessions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES identity.users(id) ON DELETE CASCADE,
   token_hash VARCHAR(255) NOT NULL UNIQUE,
@@ -62,7 +76,7 @@ CREATE TABLE identity.user_sessions (
 );
 
 -- Email verification tokens
-CREATE TABLE identity.email_verification_tokens (
+CREATE TABLE IF NOT EXISTS identity.email_verification_tokens (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES identity.users(id) ON DELETE CASCADE,
   token_hash VARCHAR(255) NOT NULL UNIQUE,
@@ -74,7 +88,7 @@ CREATE TABLE identity.email_verification_tokens (
 );
 
 -- Phone verification codes
-CREATE TABLE identity.phone_verification_codes (
+CREATE TABLE IF NOT EXISTS identity.phone_verification_codes (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES identity.users(id) ON DELETE CASCADE,
   phone VARCHAR(20) NOT NULL,
@@ -89,7 +103,7 @@ CREATE TABLE identity.phone_verification_codes (
 );
 
 -- Password reset tokens
-CREATE TABLE identity.password_reset_tokens (
+CREATE TABLE IF NOT EXISTS identity.password_reset_tokens (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES identity.users(id) ON DELETE CASCADE,
   token_hash VARCHAR(255) NOT NULL UNIQUE,
@@ -101,28 +115,37 @@ CREATE TABLE identity.password_reset_tokens (
 );
 
 -- Indexes for performance
-CREATE INDEX idx_users_email ON identity.users(email);
-CREATE INDEX idx_users_phone ON identity.users(phone);
-CREATE INDEX idx_users_role ON identity.users(role);
-CREATE INDEX idx_users_created_at ON identity.users(created_at);
+CREATE INDEX IF NOT EXISTS idx_users_email ON identity.users(email);
+CREATE INDEX IF NOT EXISTS idx_users_phone ON identity.users(phone);
+CREATE INDEX IF NOT EXISTS idx_users_role ON identity.users(role);
+CREATE INDEX IF NOT EXISTS idx_users_created_at ON identity.users(created_at);
 
-CREATE INDEX idx_sessions_user_id ON identity.user_sessions(user_id);
-CREATE INDEX idx_sessions_token_hash ON identity.user_sessions(token_hash);
-CREATE INDEX idx_sessions_device_id ON identity.user_sessions(device_id);
-CREATE INDEX idx_sessions_expires_at ON identity.user_sessions(expires_at);
-CREATE INDEX idx_sessions_active ON identity.user_sessions(is_active);
+CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON identity.user_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_token_hash ON identity.user_sessions(token_hash);
+CREATE INDEX IF NOT EXISTS idx_sessions_device_id ON identity.user_sessions(device_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON identity.user_sessions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_sessions_active ON identity.user_sessions(is_active);
 
-CREATE INDEX idx_email_verification_user_id ON identity.email_verification_tokens(user_id);
-CREATE INDEX idx_email_verification_token ON identity.email_verification_tokens(token_hash);
+CREATE INDEX IF NOT EXISTS idx_email_verification_user_id ON identity.email_verification_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_email_verification_token ON identity.email_verification_tokens(token_hash);
 
-CREATE INDEX idx_phone_verification_user_id ON identity.phone_verification_codes(user_id);
-CREATE INDEX idx_phone_verification_phone ON identity.phone_verification_codes(phone);
+CREATE INDEX IF NOT EXISTS idx_phone_verification_user_id ON identity.phone_verification_codes(user_id);
+CREATE INDEX IF NOT EXISTS idx_phone_verification_phone ON identity.phone_verification_codes(phone);
 
--- Triggers for updated_at
+-- Ensure helper exists and trigger for updated_at
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS update_users_updated_at ON identity.users;
 CREATE TRIGGER update_users_updated_at 
   BEFORE UPDATE ON identity.users 
   FOR EACH ROW 
-  EXECUTE FUNCTION update_updated_at_column();
+  EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Record migration
 INSERT INTO public.schema_migrations (version, checksum) 
