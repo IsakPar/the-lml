@@ -13,6 +13,7 @@ struct AvailabilityView: View {
   @EnvironmentObject var appState: AppState
   @State private var snapshot: AvailabilitySnapshot?
   @State private var error: String?
+  @State private var sse: SSEClient? = nil
 
   var body: some View {
     VStack(alignment: .leading) {
@@ -36,6 +37,22 @@ struct AvailabilityView: View {
       let (data, _) = try await client.request(path: "/v1/performances/\(perfId)/availability?seatmap_id=\(seatmapId)")
       let s = try JSONDecoder().decode(AvailabilitySnapshot.self, from: data)
       self.snapshot = s
+      // Start SSE stream
+      let url = base.appending(path: "/v1/performances/\(perfId)/availability/stream")
+      let headers = [
+        "Authorization": "Bearer \(client.accessToken ?? "")",
+        "X-Org-ID": client.orgId ?? ""
+      ]
+      let sseClient = SSEClient()
+      self.sse = sseClient
+      sseClient.start(url: url, headers: headers) { event, data in
+        if event == "seat.locked" || event == "seat.released" {
+          // refetch snapshot on change
+          Task { await fetch() }
+        }
+      } onError: { e in
+        self.error = e.localizedDescription
+      }
     } catch let e as ApiError { self.error = e.localizedDescription }
     catch { self.error = "Unexpected error" }
   }
