@@ -8,8 +8,14 @@ struct ThankfulApp: App {
     WindowGroup {
       NavigationView {
         if appState.isAuthenticated {
-          MeView()
-            .environmentObject(appState)
+          TabView {
+            VenuesListView()
+              .tabItem { Label("Venues", systemImage: "building.2") }
+              .environmentObject(appState)
+            MeView()
+              .tabItem { Label("Me", systemImage: "person.circle") }
+              .environmentObject(appState)
+          }
         } else {
           LoginView()
             .environmentObject(appState)

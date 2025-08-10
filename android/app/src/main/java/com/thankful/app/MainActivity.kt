@@ -11,6 +11,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import com.thankful.app.core.ApiClient
+import com.thankful.app.features.venues.VenuesScreen
 
 class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -60,6 +61,9 @@ fun ThankfulApp() {
           }) { Text("Call /v1/users/me") }
           Spacer(Modifier.height(8.dp))
           Button(onClick = { token = null }) { Text("Sign out") }
+          Spacer(Modifier.height(16.dp))
+          Text("Venues", style = MaterialTheme.typography.titleMedium)
+          VenuesScreen(api)
         }
         Spacer(Modifier.height(16.dp))
         if (message != null) Text(message!!)
