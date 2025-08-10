@@ -11,6 +11,7 @@ import { registerAvailabilityRoutes } from './v1/inventory/availability.js';
 import { registerIdentityRoutes } from './v1/identity/routes.js';
 import { registerOrdersRoutes } from './v1/orders/routes.js';
 import { registerPaymentsRoutes } from './v1/payments/routes.js';
+import { registerVerificationRoutes } from './v1/verification/routes.js';
 import { registerAuth } from './middleware/auth.js';
 import { MongoClient } from 'mongodb';
 
@@ -48,6 +49,7 @@ async function main() {
   await registerAvailabilityRoutes(app);
   await registerOrdersRoutes(app);
   await registerPaymentsRoutes(app);
+  await registerVerificationRoutes(app);
   // eslint-disable-next-line no-console
   console.log('routes mounted: /livez, /readyz, /metrics, /v1/*');
   const port = Number(process.env.PORT ?? 3000);
