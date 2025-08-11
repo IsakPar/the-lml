@@ -23,17 +23,30 @@ struct SeatmapScreen: View {
         } else if let m = model {
           ScrollView([.vertical, .horizontal]) {
             GeometryReader { geo in
-              let scale = min(geo.size.width / max(m.viewportWidth, 1), 3.0)
+              let canvas = geo.size
+              let options = SeatmapTransformOptions()
+              let res = try? computeSeatmapTransform(seats: m.seats, canvasSize: canvas, options: options)
+              let scale = res?.scale ?? 1.0
+              let flippedY = res?.flippedY ?? false
+              let dx = res?.dx ?? 0
+              let dy = res?.dy ?? 0
+              let rPx = res?.seatRadiusPx ?? 8
+              let warn = res?.warnings ?? []
+              if let res = res {
+                print("[Seatmap] count=\(m.seats.count) bounds=(\(res.minX),\(res.minY))-(\(res.maxX),\(res.maxY)) world=(\(res.worldW)x\(res.worldH)) scale=\(res.scale) flippedY=\(res.flippedY) dxdy=(\(res.dx),\(res.dy)) rPx=\(res.seatRadiusPx) clamped=\(res.scaleClamped)")
+              }
               ZStack(alignment: .topLeading) {
                 Rectangle().fill(Color.white.opacity(0.04))
-                  .frame(width: m.viewportWidth * scale, height: m.viewportHeight * scale)
                 ForEach(m.seats, id: \.id) { seat in
-                  let w = max(seat.w * scale, 8)
-                  let h = max(seat.h * scale, 8)
+                  let cx = (CGFloat(seat.x) - (res?.minX ?? 0)) * scale + dx
+                  let cyRaw = (CGFloat(seat.y) - (res?.minY ?? 0)) * scale
+                  let cy = (flippedY ? (canvas.height - cyRaw) : cyRaw) + dy
+                  let w = max(CGFloat(seat.w) * scale, rPx)
+                  let h = max(CGFloat(seat.h) * scale, rPx)
                   RoundedRectangle(cornerRadius: 2)
                     .fill(fillColor(for: seat))
                     .frame(width: w, height: h)
-                    .position(x: (seat.x + seat.w/2) * scale, y: (seat.y + seat.h/2) * scale)
+                    .position(x: cx + w/2, y: cy + h/2)
                 }
                 if m.seats.isEmpty {
                   Text("No seats parsed\nCheck JSON keys: seats[x,y,row,section]")
@@ -44,6 +57,15 @@ struct SeatmapScreen: View {
                     .cornerRadius(8)
                     .position(x: 160, y: 80)
                 }
+                if !warn.isEmpty {
+                  VStack(alignment: .leading, spacing: 2) {
+                    ForEach(warn, id: \.self) { w in Text(w).font(.caption2).foregroundColor(.yellow) }
+                  }
+                  .padding(6)
+                  .background(Color.black.opacity(0.3))
+                  .cornerRadius(6)
+                  .padding(8)
+                }
                 Text("STAGE")
                   .font(.caption.bold())
                   .padding(6)
@@ -51,7 +73,7 @@ struct SeatmapScreen: View {
                   .cornerRadius(6)
                   .offset(x: 8, y: 8)
               }
-              .frame(width: max(m.viewportWidth * scale + 32, geo.size.width), height: max(m.viewportHeight * scale + 32, geo.size.height), alignment: .topLeading)
+              .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
               .padding(16)
             }
           }

@@ -97,6 +97,17 @@ export async function registerVenueRoutes(app: FastifyInstance, deps: { mongo: M
     if (!doc) {
       return reply.code(404).type('application/problem+json').send(problem(404, 'not_found', 'seatmap not found', 'urn:thankful:venues:seatmap_not_found', req.ctx?.traceId));
     }
+    // Augment seats with normalized section key and optional metadata for clients (non-breaking)
+    if ((doc as any).data?.seats && Array.isArray((doc as any).data.seats)) {
+      try {
+        for (const seat of (doc as any).data.seats as any[]) {
+          if (seat.section) {
+            seat.section_norm = String(seat.section).trim().toLowerCase();
+          }
+          // future: seat.priceTierCode if resolvable from tiers mapping
+        }
+      } catch {}
+    }
     const etag = 'W/"' + crypto.createHash('sha1').update(JSON.stringify({ v: (doc as any).version, hash: (doc as any).hash })).digest('hex') + '"';
     reply.header('ETag', etag);
     const ifNoneMatch = req.headers['if-none-match'];

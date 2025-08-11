@@ -2,7 +2,7 @@ package com.thankful.app.engine
 
 data class SeatAttrs(val accessible: Boolean, val companion: Boolean, val obstructed: Boolean)
 data class PriceLevel(val id: String, val name: String)
-data class SeatNode(val id: String, val sectionId: String, val x: Double, val y: Double, val w: Double, val h: Double, val priceLevelId: String?, val attrs: SeatAttrs)
+data class SeatNode(val id: String, val sectionId: String, val x: Double, val y: Double, val w: Double, val h: Double, val priceLevelId: String?, val attrs: SeatAttrs, val colorHex: String? = null)
 data class SectionNode(val id: String, val name: String)
 data class SeatmapModel(val id: String, val name: String, val version: Int, val viewportWidth: Double, val viewportHeight: Double, val sections: List<SectionNode>, val seats: List<SeatNode>, val priceLevels: List<PriceLevel>, val warnings: List<String>)
 
@@ -37,7 +37,8 @@ object SeatmapParser {
         obstructed = (dict["is_obstructed_view"] as? Boolean) == true
       )
       val pl = dict["suggested_price_tier"] as? String
-      seats.add(SeatNode(sid, sectionId, x, y, w, h, pl, attrs))
+      val color = dict["color"] as? String
+      seats.add(SeatNode(sid, sectionId, x, y, w, h, pl, attrs, color))
     }
 
     val secArr = raw["sections"] as? List<Map<String, Any?>>

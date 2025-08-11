@@ -53,7 +53,8 @@ public struct SeatmapParser {
       var sectionIds: [String: String] = [:]
       for seat in seatArr {
         let sname = (seat["section"] as? String) ?? "Section"
-        let sid = sectionIds[sname] ?? { let id = UUID().uuidString; sectionIds[sname] = id; return id }()
+        let norm = sname.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let sid = sectionIds[norm] ?? { let id = UUID().uuidString; sectionIds[norm] = id; return id }()
         if !sections.contains(where: { $0.id == sid }) { sections.append(.init(id: sid, name: sname)) }
         parseSeat(sectionId: sid, dict: seat)
       }
