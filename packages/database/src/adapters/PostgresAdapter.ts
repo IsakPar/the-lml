@@ -119,6 +119,14 @@ export class PostgresAdapter {
       // Enforce RLS and set tenant GUC within transaction scope
       await client.query("SET LOCAL row_security = on");
       await client.query("SELECT set_config('app.tenant_id', $1, true)", [tenantId]);
+      // During tests, switch effective role to a non-superuser to avoid bypassing RLS
+      if (process.env.NODE_ENV === 'test' || process.env.VITEST) {
+        try {
+          await client.query("SET LOCAL ROLE thankful_app");
+        } catch {
+          // ignore if role is missing
+        }
+      }
       return fn(client);
     });
   }

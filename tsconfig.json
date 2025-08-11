@@ -43,7 +43,8 @@
       "@thankful/container": ["packages/container/src/index.ts"],
       "@thankful/notifications": ["packages/notifications/src/index.ts"],
       "@thankful/verification": ["packages/verification/src/index.ts"],
-      "@thankful/ratelimit": ["packages/ratelimit/src/index.ts"]
+      "@thankful/ratelimit": ["packages/ratelimit/src/index.ts"],
+      "@thankful/logging": ["packages/logging/src/index.ts"]
     },
     "outDir": "./dist"
   }

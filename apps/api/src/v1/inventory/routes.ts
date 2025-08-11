@@ -8,6 +8,7 @@ import { createRateLimitMiddleware } from '@thankful/ratelimit';
 import { broadcast } from '../../utils/sse.js';
 import { createIdemStore } from '../../../../../packages/idempotency/src/store.js';
 import { canonicalHash } from '../../../../../packages/idempotency/src/index.js';
+import { trace } from '@opentelemetry/api';
 
 type HoldRequest = {
   performance_id: string;
@@ -29,20 +30,36 @@ export async function registerInventoryRoutes(app: FastifyInstance) {
   const adapter = new RedisSeatLockAdapter(redisUrl);
   await adapter.connect();
   await adapter.loadScripts();
-  // Idempotency store (Redis-like wrapper)
-  const redisNative = createRedisClient({ url: String(process.env.REDIS_URL || 'redis://localhost:6379') });
-  await redisNative.connect();
-  const idemClient = {
-    get: (key: string) => redisNative.get(key),
-    set: async (key: string, value: string, _mode: 'EX', ttlSec: number, flag?: 'NX' | 'XX') => {
-      const opts: any = { EX: ttlSec };
-      if (flag === 'NX') opts.NX = true;
-      if (flag === 'XX') opts.XX = true;
-      const res = await redisNative.set(key, value, opts);
-      return res === 'OK' ? 'OK' : null;
-    }
-  };
-  const idemStore = createIdemStore(idemClient as any);
+  // Idempotency store (use in-memory in tests for determinism)
+  let idemStore: ReturnType<typeof createIdemStore>;
+  if (process.env.NODE_ENV === 'test' || process.env.VITEST) {
+    const memory = new Map<string, string>();
+    const memClient = {
+      get: async (k: string) => memory.get(k) ?? null,
+      set: async (k: string, v: string, _mode: 'EX', ttlSec: number, flag?: 'NX' | 'XX') => {
+        if (flag === 'NX' && memory.has(k)) return null;
+        if (flag === 'XX' && !memory.has(k)) return null;
+        memory.set(k, v);
+        setTimeout(() => memory.delete(k), ttlSec * 1000).unref?.();
+        return 'OK' as const;
+      }
+    } as const;
+    idemStore = createIdemStore(memClient as any);
+  } else {
+    const redisNative = createRedisClient({ url: String(process.env.REDIS_URL || 'redis://localhost:6379') });
+    await redisNative.connect();
+    const idemClient = {
+      get: (key: string) => redisNative.get(key),
+      set: async (key: string, value: string, _mode: 'EX', ttlSec: number, flag?: 'NX' | 'XX') => {
+        const opts: any = { EX: ttlSec };
+        if (flag === 'NX') opts.NX = true;
+        if (flag === 'XX') opts.XX = true;
+        const res = await redisNative.set(key, value, opts);
+        return res === 'OK' ? 'OK' : null;
+      }
+    };
+    idemStore = createIdemStore(idemClient as any);
+  }
 
   async function getCurrentToken(key: string): Promise<{ version: number; owner: string } | null> {
     try {
@@ -64,6 +81,8 @@ export async function registerInventoryRoutes(app: FastifyInstance) {
   // POST /v1/holds
   const rlMutating = createRateLimitMiddleware({ limit: 10, windowSeconds: 60 });
   app.post('/v1/holds', { preHandler: rlMutating as any }, async (req: any, reply) => {
+    const tracer = trace.getTracer('api');
+    return await tracer.startActiveSpan('holds.acquire', async (span) => {
     // Require inventory scope
     const guard = (app as any).requireScopes?.(['inventory.holds:write']);
     if (guard) {
@@ -139,12 +158,19 @@ export async function registerInventoryRoutes(app: FastifyInstance) {
     await idemStore.commit(storeKey, { status: 201, headersHash, bodyHash: respHash, responseBody: JSON.stringify(payload) }, 24 * 3600);
     metrics.idem_commit_total.inc();
     metrics.seat_lock_acquire_ok_total.inc();
-    reply.header('Idempotency-Status', 'new');
-    reply.code(201).send(payload);
+      span.setAttribute('tenantId', String(req.ctx.orgId));
+      span.setAttribute('performanceId', body.performance_id);
+      span.setAttribute('seats.count', body.seats.length);
+      span.end();
+      reply.header('Idempotency-Status', 'new');
+      reply.code(201).send(payload);
+    });
   });
 
   // PATCH /v1/holds (extend single seat hold for MVP)
   app.patch('/v1/holds', { preHandler: rlMutating as any }, async (req: any, reply) => {
+    const tracer = trace.getTracer('api');
+    return await tracer.startActiveSpan('holds.extend', async (span) => {
     const guard = (app as any).requireScopes?.(['inventory.holds:write']);
     if (guard) {
       const resp = await guard(req, reply);
@@ -211,12 +237,19 @@ export async function registerInventoryRoutes(app: FastifyInstance) {
     const headersHash = 'h0';
     const respHash = canonicalHash({ method: 'PATCH', path: '/v1/holds', contentType: 'application/json', body: response });
     await idemStore.commit(storeKey, { status: 200, headersHash, bodyHash: respHash, responseBody: JSON.stringify(response) }, 6 * 3600);
-    metrics.idem_commit_total.inc();
-    return reply.code(200).send(response);
+      span.setAttribute('tenantId', String(req.ctx.orgId));
+      span.setAttribute('performanceId', body.performance_id);
+      span.setAttribute('seatId', body.seat_id);
+      span.end();
+      metrics.idem_commit_total.inc();
+      return reply.code(200).send(response);
+    });
   });
 
   // DELETE /v1/holds/:hold_id (demo: release single seat provided via query)
   app.delete('/v1/holds/:holdId', { preHandler: rlMutating as any }, async (req: any, reply) => {
+    const tracer = trace.getTracer('api');
+    return await tracer.startActiveSpan('holds.release', async (span) => {
     const guard = (app as any).requireScopes?.(['inventory.holds:write']);
     if (guard) {
       const resp = await guard(req, reply);
@@ -278,9 +311,14 @@ export async function registerInventoryRoutes(app: FastifyInstance) {
     // Broadcast SSE event with enriched payload
     broadcast('seat.released', { performance_id: perfId, seat_id: seatId, sales_channel_id: req.query?.sales_channel_id, released_at: new Date().toISOString() });
     await idemStore.commit(storeKey, { status: 204, headersHash: 'h0', bodyHash: 'b0', responseBody: '' }, 6 * 3600);
-    metrics.idem_commit_total.inc();
-    metrics.seat_lock_release_ok_total.inc();
-    return reply.code(204).send();
+      span.setAttribute('tenantId', String(req.ctx.orgId));
+      span.setAttribute('performanceId', perfId);
+      span.setAttribute('seatId', seatId);
+      span.end();
+      metrics.idem_commit_total.inc();
+      metrics.seat_lock_release_ok_total.inc();
+      return reply.code(204).send();
+    });
   });
 }
 

@@ -1,4 +1,5 @@
 import SwiftUI
+import LocalAuthentication
 
 struct LoginView: View {
   @EnvironmentObject var appState: AppState
@@ -6,6 +7,7 @@ struct LoginView: View {
   @State private var password: String = ""
   @State private var message: String? = nil
   @State private var isLoading = false
+  @State private var biometricsAvailable = false
 
   var body: some View {
     VStack(spacing: 16) {
@@ -23,6 +25,9 @@ struct LoginView: View {
       }
       .buttonStyle(.borderedProminent)
       .disabled(isLoading || username.isEmpty || password.isEmpty)
+      if biometricsAvailable {
+        Button("Use Face ID / Touch ID") { biometricLogin() }.buttonStyle(.bordered)
+      }
       Spacer()
     }
     .padding()
@@ -42,8 +47,9 @@ struct LoginView: View {
         let token = obj?["access_token"] as? String
         if let t = token {
           _ = KeychainHelper.save(key: "access_token", data: Data(t.utf8))
-          self.appState.accessToken = t
-          self.appState.isAuthenticated = true
+           self.appState.accessToken = t
+           self.appState.isAuthenticated = true
+           self.appState.verifierStartRefresh()
         } else { self.message = "Invalid response" }
       } catch let e as ApiError {
         self.message = e.localizedDescription
@@ -52,6 +58,26 @@ struct LoginView: View {
       }
       self.isLoading = false
     }
+  }
+
+  func biometricLogin() {
+    let ctx = LAContext()
+    var err: NSError?
+    if ctx.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &err) {
+      ctx.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: "Unlock Thankful") { ok, _ in
+        DispatchQueue.main.async {
+          if ok { self.appState.isAuthenticated = true } else { self.message = "Biometric failed" }
+        }
+      }
+    } else {
+      self.message = "Biometrics unavailable"
+    }
+  }
+  init() {
+    let ctx = LAContext()
+    var err: NSError?
+    _ = ctx.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &err)
+    _biometricsAvailable = State(initialValue: err == nil)
   }
 }
 

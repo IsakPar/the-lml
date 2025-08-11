@@ -9,14 +9,33 @@ import { registerVenueRoutes } from './v1/venues/routes.js';
 import { registerInventoryRoutes } from './v1/inventory/routes.js';
 import { registerAvailabilityRoutes } from './v1/inventory/availability.js';
 import { registerIdentityRoutes } from './v1/identity/routes.js';
+import { registerAppleAuth } from './v1/identity/apple.js';
 import { registerOrdersRoutes } from './v1/orders/routes.js';
 import { registerPaymentsRoutes } from './v1/payments/routes.js';
 import { registerVerificationRoutes } from './v1/verification/routes.js';
 import { registerAuth } from './middleware/auth.js';
 import { MongoClient } from 'mongodb';
+import rawBody from 'fastify-raw-body';
+import { initTracing } from './tracing.js';
+import fastifyStaticDefault from '@fastify/static';
+import path from 'node:path';
 
 async function main() {
+  initTracing();
   const app = Fastify({ logger: true });
+  await app.register(rawBody, { field: 'rawBody', global: true, runFirst: true });
+  // Serve static assets from /public under /public/*
+  try {
+    const fastifyStatic: any = (fastifyStaticDefault as any).default || fastifyStaticDefault;
+    await app.register(fastifyStatic, {
+      root: path.resolve(process.cwd(), 'public'),
+      prefix: '/public/',
+      decorateReply: false,
+      index: false,
+      cacheControl: true,
+      maxAge: '1h'
+    });
+  } catch {}
   app.get('/livez', async () => ({ status: 'ok' }));
   app.get('/readyz', readyzHandler);
   app.get('/metrics', async (_req, reply) => {
@@ -34,6 +53,7 @@ async function main() {
   // Mount v1 routes
   await registerHealthRoutes(app);
   await registerIdentityRoutes(app);
+  await registerAppleAuth(app);
 
   // Shared clients (can be moved to DI later)
   const mongo = new MongoClient(String(process.env.MONGODB_URL || 'mongodb://localhost:27017/thankful'));

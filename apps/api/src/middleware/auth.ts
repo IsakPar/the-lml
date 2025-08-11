@@ -19,6 +19,8 @@ export function registerAuth(app: FastifyInstance) {
   app.addHook('preHandler', async (req: FastifyRequest, reply: FastifyReply) => {
     // Public routes under /v1/public are skipped
     if (req.url.startsWith('/v1/public')) return;
+    // Public static assets under /public/*
+    if (req.url.startsWith('/public/')) return;
 
     // Allow unauthenticated for a small set (token issuance etc.)
     const publicWhitelist = new Set<string>([
@@ -27,9 +29,14 @@ export function registerAuth(app: FastifyInstance) {
       'GET /v1/status',
       'GET /v1/time',
       'POST /v1/payments/webhook/stripe',
+      'GET /v1/verification/jwks',
     ]);
-    const key = `${req.method} ${req.url}`.split('?')[0];
+    const cleanUrl = req.url.split('?')[0];
+    const key = `${req.method} ${cleanUrl}`;
     if (publicWhitelist.has(key)) return;
+    // Public read for show listings and seatmaps (MVP):
+    if (req.method === 'GET' && (cleanUrl === '/v1/shows' || cleanUrl.startsWith('/v1/shows/'))) return;
+    if (req.method === 'GET' && (cleanUrl.startsWith('/v1/seatmaps/'))) return;
 
     const token = extractBearer(req.headers.authorization as string | undefined);
     if (!token) {

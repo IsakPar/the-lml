@@ -23,6 +23,11 @@ export function problem(status: number, title: string, detail?: string, type?: s
 export function registerProblemHandler(app: FastifyInstance) {
   app.setErrorHandler((err, req, reply: FastifyReply) => {
     const status = typeof (err as any).statusCode === 'number' ? (err as any).statusCode : 500;
+    // Log server errors for visibility in tests/dev
+    if (status >= 500) {
+      // eslint-disable-next-line no-console
+      console.error('Unhandled error:', err);
+    }
     const body: Problem = {
       type: `urn:thankful:error:${status}`,
       title: err.name || 'Internal Server Error',

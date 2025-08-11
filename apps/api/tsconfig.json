@@ -10,7 +10,9 @@
       "@platform/api": ["../../packages/platform/api/src/index.ts"],
       "@thankful/database": ["../../packages/database/src/index.ts"],
       "@thankful/metrics": ["../../packages/metrics/src/index.ts"],
-      "@thankful/ratelimit": ["../../packages/ratelimit/src/index.ts"]
+      "@thankful/ratelimit": ["../../packages/ratelimit/src/index.ts"],
+      "@thankful/verification": ["../../packages/verification/src/index.ts"],
+      "@thankful/logging": ["../../packages/logging/src/index.ts"]
     }
   },
   "include": ["src"],
@@ -20,6 +22,7 @@
     { "path": "../../packages/idempotency" },
     { "path": "../../packages/metrics" },
     { "path": "../../packages/ratelimit" },
+    { "path": "../../packages/verification" },
     { "path": "../../packages/notifications" }
   ]
 }

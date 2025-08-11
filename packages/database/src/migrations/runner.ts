@@ -237,18 +237,11 @@ COMMIT;
       // Execute migration
       await client.query(sqlWithChecksum);
       
-      // Record migration if not already recorded
-      const existingRecord = await client.query(
-        'SELECT 1 FROM public.schema_migrations WHERE version = $1',
-        [version]
+      // Record migration if not already recorded (concurrency-safe)
+      await client.query(
+        'INSERT INTO public.schema_migrations (version, checksum) VALUES ($1, $2) ON CONFLICT (version) DO NOTHING',
+        [version, checksum]
       );
-      
-      if (existingRecord.rows.length === 0) {
-        await client.query(
-          'INSERT INTO public.schema_migrations (version, checksum) VALUES ($1, $2)',
-          [version, checksum]
-        );
-      }
     });
     
     console.log(`✅ Migration completed: ${migrationFile}`);

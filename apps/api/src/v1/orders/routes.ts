@@ -17,7 +17,7 @@ export async function registerOrdersRoutes(app: FastifyInstance) {
 
   // Idempotency store: in tests use in-memory; otherwise Redis
   let idemStore: ReturnType<typeof createIdemStore>;
-  if (process.env.NODE_ENV === 'test') {
+  if (process.env.NODE_ENV === 'test' || process.env.VITEST) {
     const memory = new Map<string, string>();
     const memClient = {
       get: async (k: string) => memory.get(k) ?? null,
