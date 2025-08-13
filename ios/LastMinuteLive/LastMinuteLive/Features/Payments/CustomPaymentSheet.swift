@@ -16,149 +16,115 @@ struct CustomPaymentSheet: View {
   // MARK: - State Management
   
   @StateObject private var paymentProcessor = StripePaymentProcessor()
-  @State private var formData = PaymentFormData()
-  @State private var validationErrors = CardValidationErrors()
-  @State private var emailError: String?
-  
-  // MARK: - Computed Properties
-  
-  private var orderSummary: OrderSummary {
-    let seatCount = totalAmount / 2500 // Assuming £25 per seat
-    return OrderSummary(
-      seatCount: seatCount,
-      totalAmount: totalAmount,
-      currency: currency,
-      processingFeeIncluded: true
-    )
-  }
-  
-  private var paymentConfiguration: PaymentConfiguration {
-    PaymentConfiguration(
-      clientSecret: clientSecret,
-      orderSummary: orderSummary,
-      stripePublishableKey: Config.stripePublishableKey,
-      appleMerchantIdentifier: Config.merchantIdentifier,
-      isApplePayEnabled: true
-    )
-  }
-  
-  private var isFormValid: Bool {
-    let validation = CardInputValidation.validatePaymentForm(
-      cardNumber: formData.cardNumber,
-      expiryDate: formData.expiryDate,
-      cvc: formData.cvcCode,
-      email: formData.email,
-      nameOnCard: formData.nameOnCard
-    )
-    return validation.isValid
-  }
+  @State private var showPaymentSheet = false
   
   // MARK: - Body
   
   var body: some View {
-    NavigationView {
-      ScrollView {
-        PaymentFormContent(
-          formData: $formData,
-          emailError: $emailError,
-          orderSummary: orderSummary,
-          validationErrors: validationErrors,
-          isFormValid: formData.selectedPaymentMethod == .applePay || isFormValid,
-          isProcessing: paymentProcessor.paymentState.isProcessing,
-          errorMessage: paymentProcessor.errorMessage,
-          isApplePaySupported: paymentProcessor.isApplePaySupported,
-          onEmailChanged: validateEmail,
-          onCardNumberChanged: { formatAndValidateCardNumber() },
-          onExpiryChanged: { formatAndValidateExpiry() },
-          onCVCChanged: { formatAndValidateCVC() },
-          onPaymentPressed: processPayment
-        )
+    VStack(spacing: 24) {
+      // Payment summary
+      VStack(spacing: 16) {
+        Text("Complete Your Payment")
+          .font(.title2)
+          .fontWeight(.semibold)
+        
+        Text("Order: \(orderId)")
+          .font(.caption)
+          .foregroundColor(.secondary)
+        
+        Text(formattedTotal)
+          .font(.title)
+          .fontWeight(.bold)
+          .foregroundColor(.blue)
       }
-      .navigationTitle("Secure Checkout")
-      .navigationBarTitleDisplayMode(.inline)
-      .navigationBarBackButtonHidden(true)
-      .toolbar {
-        ToolbarItem(placement: .navigationBarLeading) {
-          Button("Cancel") { dismiss() }
-            .foregroundColor(.primary)
+      .padding()
+      
+      // Payment button
+      Button(action: presentPaymentSheet) {
+        HStack {
+          Image(systemName: "creditcard")
+          Text("Pay with Stripe")
+            .fontWeight(.semibold)
+        }
+        .font(.headline)
+        .foregroundColor(.white)
+        .frame(maxWidth: .infinity)
+        .frame(height: 56)
+        .background(Color.blue)
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+      }
+      .disabled(paymentProcessor.paymentState.isProcessing)
+      
+      // Status messages
+      if let errorMessage = paymentProcessor.errorMessage {
+        Text(errorMessage)
+          .foregroundColor(.red)
+          .font(.caption)
+          .multilineTextAlignment(.center)
+      }
+      
+      // Powered by Stripe footer
+      VStack(spacing: 8) {
+        Divider()
+        
+        HStack {
+          Spacer()
+          
+          Text("Powered by")
+            .font(.caption2)
+            .foregroundColor(.secondary)
+          
+          Text("Stripe")
+            .font(.caption2)
+            .fontWeight(.semibold)
+            .foregroundColor(.blue)
+          
+          Spacer()
         }
       }
-      .onAppear { setupPaymentSheet() }
-      .onChange(of: paymentProcessor.paymentState) { state in
-        handlePaymentStateChange(state)
+      .padding(.top, 20)
+      
+      Spacer()
+    }
+    .padding()
+    .navigationTitle("Payment")
+    .navigationBarTitleDisplayMode(.inline)
+    .navigationBarBackButtonHidden(true)
+    .toolbar {
+      ToolbarItem(placement: .navigationBarLeading) {
+        Button("Cancel") { dismiss() }
+          .foregroundColor(.primary)
       }
     }
-  }
-  
-  // MARK: - Setup & Validation
-  
-  private func setupPaymentSheet() {
-    paymentProcessor.configure(with: paymentConfiguration)
-    
-    // Pre-fill email if user is logged in
-    if app.isAuthenticated, let accessToken = app.accessToken {
-      formData.email = JWTTokenParser.extractEmail(from: accessToken) ?? ""
+    .onAppear {
+      configurePaymentProcessor()
+    }
+    .onChange(of: paymentProcessor.paymentState) { state in
+      handlePaymentStateChange(state)
     }
   }
   
-  private func validateEmail() {
-    let result = CardInputValidation.validateEmail(formData.email)
-    emailError = result.errorMessage
-  }
+  // MARK: - Helper Properties
   
-  private func formatAndValidateCardNumber() {
-    formData.cardNumber = CardInputFormatting.formatCardNumber(formData.cardNumber)
-    updateValidationErrors()
-  }
-  
-  private func formatAndValidateExpiry() {
-    formData.expiryDate = CardInputFormatting.formatExpiryDate(formData.expiryDate)
-    updateValidationErrors()
-  }
-  
-  private func formatAndValidateCVC() {
-    formData.cvcCode = CardInputFormatting.formatCVC(formData.cvcCode)
-    updateValidationErrors()
-  }
-  
-  private func updateValidationErrors() {
-    let validation = CardInputValidation.validatePaymentForm(
-      cardNumber: formData.cardNumber,
-      expiryDate: formData.expiryDate,
-      cvc: formData.cvcCode,
-      email: formData.email,
-      nameOnCard: formData.nameOnCard
-    )
-    validationErrors = validation.errors
+  private var formattedTotal: String {
+    String(format: "£%.2f", Double(totalAmount) / 100)
   }
   
   // MARK: - Payment Processing
   
-  private func processPayment() {
-    Task {
-      do {
-        let result: PaymentResult
-        
-        if formData.selectedPaymentMethod == .applePay {
-          result = try await paymentProcessor.processApplePayPayment()
-        } else {
-          result = try await paymentProcessor.processCardPayment(with: formData)
-        }
-        
-        await MainActor.run {
-          onPaymentCompletion(result.toPaymentSheetResult())
-        }
-        
-      } catch {
-        // Error handling is managed by the payment processor
-        print("Payment error: \(error)")
-      }
-    }
+  private func configurePaymentProcessor() {
+    paymentProcessor.configure(with: clientSecret)
+  }
+  
+  private func presentPaymentSheet() {
+    _ = paymentProcessor.presentPaymentSheet()
   }
   
   private func handlePaymentStateChange(_ state: PaymentState) {
     if case .completed(let result) = state {
       onPaymentCompletion(result.toPaymentSheetResult())
+      dismiss()
     }
   }
 }

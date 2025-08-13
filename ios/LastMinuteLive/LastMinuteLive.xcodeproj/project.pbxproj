@@ -12,6 +12,7 @@
 		D0CFAAD32E4C9F9600CB7FD8 /* StripeCardScan in Frameworks */ = {isa = PBXBuildFile; productRef = D0CFAAD22E4C9F9600CB7FD8 /* StripeCardScan */; };
 		D0CFAAD52E4C9F9600CB7FD8 /* StripeConnect in Frameworks */ = {isa = PBXBuildFile; productRef = D0CFAAD42E4C9F9600CB7FD8 /* StripeConnect */; };
 		D0CFAAD72E4C9F9600CB7FD8 /* StripeFinancialConnections in Frameworks */ = {isa = PBXBuildFile; productRef = D0CFAAD62E4C9F9600CB7FD8 /* StripeFinancialConnections */; };
+		D0CFAAEF2E4D452100CB7FD8 /* StripePaymentSheet in Frameworks */ = {isa = PBXBuildFile; productRef = D0CFAAEE2E4D452100CB7FD8 /* StripePaymentSheet */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -64,6 +65,7 @@
 				D0CFAAD32E4C9F9600CB7FD8 /* StripeCardScan in Frameworks */,
 				D0CFAACF2E4C9F9600CB7FD8 /* Stripe in Frameworks */,
 				D0CFAAD52E4C9F9600CB7FD8 /* StripeConnect in Frameworks */,
+				D0CFAAEF2E4D452100CB7FD8 /* StripePaymentSheet in Frameworks */,
 				D0CFAAD12E4C9F9600CB7FD8 /* StripeApplePay in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -130,6 +132,7 @@
 				D0CFAAD22E4C9F9600CB7FD8 /* StripeCardScan */,
 				D0CFAAD42E4C9F9600CB7FD8 /* StripeConnect */,
 				D0CFAAD62E4C9F9600CB7FD8 /* StripeFinancialConnections */,
+				D0CFAAEE2E4D452100CB7FD8 /* StripePaymentSheet */,
 			);
 			productName = LastMinuteLive;
 			productReference = D0CFAA5A2E49537500CB7FD8 /* LastMinuteLive.app */;
@@ -619,6 +622,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = D0CFAACD2E4C9F9600CB7FD8 /* XCRemoteSwiftPackageReference "stripe-ios" */;
 			productName = StripeFinancialConnections;
+		};
+		D0CFAAEE2E4D452100CB7FD8 /* StripePaymentSheet */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D0CFAACD2E4C9F9600CB7FD8 /* XCRemoteSwiftPackageReference "stripe-ios" */;
+			productName = StripePaymentSheet;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

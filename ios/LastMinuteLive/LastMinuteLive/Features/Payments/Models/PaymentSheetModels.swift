@@ -20,63 +20,6 @@ enum PaymentResult {
   }
 }
 
-// MARK: - Payment Method Type
-
-enum PaymentMethodType {
-  case card
-  case applePay
-  
-  var displayName: String {
-    switch self {
-    case .card:
-      return "Credit or Debit Card"
-    case .applePay:
-      return "Apple Pay"
-    }
-  }
-  
-  var iconName: String {
-    switch self {
-    case .card:
-      return "creditcard"
-    case .applePay:
-      return "applelogo"
-    }
-  }
-}
-
-// MARK: - Payment Form Data
-
-struct PaymentFormData {
-  var cardNumber: String = ""
-  var expiryDate: String = ""
-  var cvcCode: String = ""
-  var email: String = ""
-  var nameOnCard: String = ""
-  var selectedPaymentMethod: PaymentMethodType = .card
-  
-  // Computed properties
-  var formattedCardNumber: String {
-    return CardInputFormatting.formatCardNumber(cardNumber)
-  }
-  
-  var cleanCardNumber: String {
-    return CardInputFormatting.cleanCardNumber(cardNumber)
-  }
-  
-  var formattedExpiry: String {
-    return CardInputFormatting.formatExpiryDate(expiryDate)
-  }
-  
-  var formattedCVC: String {
-    return CardInputFormatting.formatCVC(cvcCode)
-  }
-  
-  var formattedName: String {
-    return CardInputFormatting.formatCardholderName(nameOnCard)
-  }
-}
-
 // MARK: - Order Summary
 
 struct OrderSummary {
@@ -104,30 +47,6 @@ struct OrderSummary {
   
   var processingFeeDescription: String {
     return processingFeeIncluded ? "Included" : "Not included"
-  }
-}
-
-// MARK: - Payment Configuration
-
-struct PaymentConfiguration {
-  let clientSecret: String
-  let orderSummary: OrderSummary
-  let stripePublishableKey: String
-  let appleMerchantIdentifier: String?
-  let isApplePayEnabled: Bool
-  
-  init(
-    clientSecret: String,
-    orderSummary: OrderSummary,
-    stripePublishableKey: String,
-    appleMerchantIdentifier: String? = nil,
-    isApplePayEnabled: Bool = true
-  ) {
-    self.clientSecret = clientSecret
-    self.orderSummary = orderSummary
-    self.stripePublishableKey = stripePublishableKey
-    self.appleMerchantIdentifier = appleMerchantIdentifier
-    self.isApplePayEnabled = isApplePayEnabled
   }
 }
 
