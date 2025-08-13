@@ -106,9 +106,12 @@ struct CheckoutView: View {
       if let response = orderResponse {
         CustomPaymentSheet(
           clientSecret: response.client_secret,
-          orderTotal: response.total_minor,
-          seatCount: response.seat_count
-        )
+          orderId: response.order_id,
+          totalAmount: response.total_minor,
+          currency: response.currency
+        ) { result in
+          handlePaymentResult(result)
+        }
         .environmentObject(app)
       }
     }
@@ -157,8 +160,27 @@ struct CheckoutView: View {
     }
   }
   
-  // MARK: - Custom Payment Sheet Integration
-  // No additional functions needed - CustomPaymentSheet handles everything internally
+  // MARK: - Payment Result Handling
+  
+  private func handlePaymentResult(_ result: PaymentSheetResult) {
+    customPaymentSheetPresented = false
+    
+    switch result {
+    case .completed:
+      // Payment successful - navigate back or show success
+      print("[Checkout] Payment successful!")
+      // You might want to navigate back to confirmation screen here
+      
+    case .canceled:
+      // User canceled payment - stay on checkout
+      print("[Checkout] Payment canceled")
+      
+    case .failed(let error):
+      // Payment failed - show error message
+      print("[Checkout] Payment failed: \(error)")
+      errorMessage = "Payment failed: \(error.localizedDescription)"
+    }
+  }
 }
 
 // MARK: - Data Models
