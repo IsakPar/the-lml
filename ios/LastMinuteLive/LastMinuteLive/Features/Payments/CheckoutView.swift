@@ -5,10 +5,12 @@ struct CheckoutView: View {
   @EnvironmentObject var app: AppState
   let performanceId: String
   let selectedSeats: [String]
-  @State private var customPaymentSheetPresented = false
+  
   @State private var isLoading = false
   @State private var orderResponse: CreateOrderResponse?
   @State private var errorMessage: String?
+  @State private var isProcessingPayment = false
+  @StateObject private var paymentProcessor = StripePaymentProcessor()
   
   var totalAmount: Int {
     selectedSeats.count * 2500 // £25 per seat
@@ -54,28 +56,27 @@ struct CheckoutView: View {
       if isLoading {
         ProgressView("Creating order...")
           .frame(height: 50)
+      } else if isProcessingPayment {
+        ProgressView("Processing payment...")
+          .frame(height: 50)
       } else if orderResponse != nil {
-        // Order created successfully, show retry button if needed
-        Button(action: {
-          if let response = orderResponse {
-            // Automatically show custom payment sheet when order is created
-            customPaymentSheetPresented = true
-          }
-        }) {
+        // Order created successfully - show payment button
+        Button(action: processPayment) {
           HStack {
             Image(systemName: "creditcard")
-            Text("Show Payment Options")
+            Text("Pay Now")
           }
           .font(.headline)
           .foregroundColor(.white)
           .frame(maxWidth: .infinity)
-          .frame(height: 50)
-          .background(Color.green)
+          .frame(height: 56)
+          .background(Color.blue)
           .cornerRadius(12)
+          .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
         }
       } else {
-        // Manual retry button if auto-start failed
-        Button(action: createOrderAndShowPaymentSheet) {
+        // Initial button to create order
+        Button(action: createOrder) {
           HStack {
             Image(systemName: "creditcard")
             Text("Create Order & Pay")
@@ -83,11 +84,38 @@ struct CheckoutView: View {
           .font(.headline)
           .foregroundColor(.white)
           .frame(maxWidth: .infinity)
-          .frame(height: 50)
+          .frame(height: 56)
           .background(Color.blue)
           .cornerRadius(12)
+          .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
         }
         .disabled(isLoading)
+      }
+      
+      // Payment Info
+      if orderResponse != nil {
+        VStack(spacing: 8) {
+          HStack {
+            Image(systemName: "lock.shield.fill")
+              .foregroundColor(.green)
+            Text("Secure payment powered by Stripe")
+              .font(.caption)
+              .foregroundColor(.secondary)
+          }
+          
+          HStack {
+            Image(systemName: "applelogo")
+              .foregroundColor(.primary)
+            Image(systemName: "creditcard.fill")
+              .foregroundColor(.primary)
+            Text("• Cards & Apple Pay supported")
+              .font(.caption)
+              .foregroundColor(.secondary)
+          }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
       }
       
       // Status Messages
@@ -95,6 +123,18 @@ struct CheckoutView: View {
         Text(errorMessage)
           .foregroundColor(.red)
           .font(.caption)
+          .padding()
+          .background(Color.red.opacity(0.1))
+          .cornerRadius(8)
+      }
+      
+      if let paymentError = paymentProcessor.errorMessage {
+        Text(paymentError)
+          .foregroundColor(.red)
+          .font(.caption)
+          .padding()
+          .background(Color.red.opacity(0.1))
+          .cornerRadius(8)
       }
       
       Spacer()
@@ -102,28 +142,18 @@ struct CheckoutView: View {
     .padding()
     .navigationTitle("Checkout")
     .navigationBarTitleDisplayMode(.inline)
-    .sheet(isPresented: $customPaymentSheetPresented) {
-      if let response = orderResponse {
-        CustomPaymentSheet(
-          clientSecret: response.client_secret,
-          orderId: response.order_id,
-          totalAmount: response.total_minor,
-          currency: response.currency
-        ) { result in
-          handlePaymentResult(result)
-        }
-        .environmentObject(app)
+    .onAppear {
+      // Auto-create order when checkout view appears
+      if !isLoading && orderResponse == nil {
+        createOrder()
       }
     }
-    .onAppear {
-      // Auto-start order creation when checkout view appears
-      if !isLoading && orderResponse == nil {
-        createOrderAndShowPaymentSheet()
-      }
+    .onChange(of: paymentProcessor.paymentState) { state in
+      handlePaymentStateChange(state)
     }
   }
   
-  private func createOrderAndShowPaymentSheet() {
+  private func createOrder() {
     isLoading = true
     errorMessage = nil
     
@@ -148,9 +178,10 @@ struct CheckoutView: View {
         let response = try JSONDecoder().decode(CreateOrderResponse.self, from: responseData)
         self.orderResponse = response
         
-                        // Order created successfully - trigger custom payment sheet
-                print("[Checkout] Order \(response.order_id) created successfully - showing custom payment sheet")
-                customPaymentSheetPresented = true
+        // Configure payment processor with client secret
+        paymentProcessor.configure(with: response.client_secret)
+        
+        print("[Checkout] Order \(response.order_id) created successfully")
         
       } catch {
         errorMessage = "Failed to create order: \(error.localizedDescription)"
@@ -160,25 +191,41 @@ struct CheckoutView: View {
     }
   }
   
-  // MARK: - Payment Result Handling
-  
-  private func handlePaymentResult(_ result: PaymentSheetResult) {
-    customPaymentSheetPresented = false
+  private func processPayment() {
+    isProcessingPayment = true
     
-    switch result {
-    case .completed:
-      // Payment successful - navigate back or show success
-      print("[Checkout] Payment successful!")
-      // You might want to navigate back to confirmation screen here
+    Task {
+      let result = await paymentProcessor.presentPaymentOptions()
       
-    case .canceled:
-      // User canceled payment - stay on checkout
-      print("[Checkout] Payment canceled")
+      await MainActor.run {
+        isProcessingPayment = false
+        // Payment state change will be handled by the onChange modifier
+      }
+    }
+  }
+  
+  private func handlePaymentStateChange(_ state: PaymentState) {
+    switch state {
+    case .completed(let result):
+      switch result {
+      case .success:
+        print("[Checkout] Payment successful!")
+        errorMessage = nil
+        // Show success message or navigate away
+        
+      case .cancelled:
+        print("[Checkout] Payment cancelled")
+        
+      case .failed:
+        print("[Checkout] Payment failed")
+        errorMessage = "Payment failed. Please try again."
+      }
       
-    case .failed(let error):
-      // Payment failed - show error message
-      print("[Checkout] Payment failed: \(error)")
-      errorMessage = "Payment failed: \(error.localizedDescription)"
+    case .processing:
+      isProcessingPayment = true
+      
+    case .idle:
+      isProcessingPayment = false
     }
   }
 }
@@ -202,5 +249,3 @@ struct CreateOrderResponse: Codable {
   let seat_count: Int
   let trace_id: String?
 }
-
-
