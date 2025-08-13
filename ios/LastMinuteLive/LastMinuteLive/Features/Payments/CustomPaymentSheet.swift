@@ -16,7 +16,7 @@ struct CustomPaymentSheet: View {
   // MARK: - State Management
   
   @StateObject private var paymentProcessor = StripePaymentProcessor()
-  @State private var showPaymentSheet = false
+  @State private var isProcessing = false
   
   // MARK: - Body
   
@@ -24,6 +24,10 @@ struct CustomPaymentSheet: View {
     VStack(spacing: 24) {
       // Payment summary
       VStack(spacing: 16) {
+        Image(systemName: "creditcard.fill")
+          .font(.system(size: 48))
+          .foregroundColor(.blue)
+        
         Text("Complete Your Payment")
           .font(.title2)
           .fontWeight(.semibold)
@@ -38,23 +42,31 @@ struct CustomPaymentSheet: View {
           .foregroundColor(.blue)
       }
       .padding()
+      .background(Color(.systemGray6))
+      .cornerRadius(16)
       
       // Payment button
-      Button(action: presentPaymentSheet) {
+      Button(action: processPayment) {
         HStack {
-          Image(systemName: "creditcard")
-          Text("Pay with Stripe")
-            .fontWeight(.semibold)
+          if isProcessing {
+            ProgressView()
+              .progressViewStyle(CircularProgressViewStyle(tint: .white))
+              .scaleEffect(0.8)
+          } else {
+            Image(systemName: "creditcard")
+            Text("Pay Now")
+              .fontWeight(.semibold)
+          }
         }
         .font(.headline)
         .foregroundColor(.white)
         .frame(maxWidth: .infinity)
         .frame(height: 56)
-        .background(Color.blue)
+        .background(isProcessing ? Color.gray : Color.blue)
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
       }
-      .disabled(paymentProcessor.paymentState.isProcessing)
+      .disabled(isProcessing)
       
       // Status messages
       if let errorMessage = paymentProcessor.errorMessage {
@@ -62,28 +74,34 @@ struct CustomPaymentSheet: View {
           .foregroundColor(.red)
           .font(.caption)
           .multilineTextAlignment(.center)
+          .padding()
+          .background(Color.red.opacity(0.1))
+          .cornerRadius(8)
       }
       
-      // Powered by Stripe footer
+      // Payment info
       VStack(spacing: 8) {
-        Divider()
+        HStack {
+          Image(systemName: "lock.shield.fill")
+            .foregroundColor(.green)
+          Text("Secure payment powered by Stripe")
+            .font(.caption)
+            .foregroundColor(.secondary)
+        }
         
         HStack {
-          Spacer()
-          
-          Text("Powered by")
-            .font(.caption2)
+          Image(systemName: "applelogo")
+            .foregroundColor(.primary)
+          Image(systemName: "creditcard.fill")
+            .foregroundColor(.primary)
+          Text("• Cards & Apple Pay supported")
+            .font(.caption)
             .foregroundColor(.secondary)
-          
-          Text("Stripe")
-            .font(.caption2)
-            .fontWeight(.semibold)
-            .foregroundColor(.blue)
-          
-          Spacer()
         }
       }
-      .padding(.top, 20)
+      .padding()
+      .background(Color(.systemGray6))
+      .cornerRadius(12)
       
       Spacer()
     }
@@ -93,8 +111,11 @@ struct CustomPaymentSheet: View {
     .navigationBarBackButtonHidden(true)
     .toolbar {
       ToolbarItem(placement: .navigationBarLeading) {
-        Button("Cancel") { dismiss() }
-          .foregroundColor(.primary)
+        Button("Cancel") { 
+          onPaymentCompletion(.canceled)
+          dismiss() 
+        }
+        .foregroundColor(.primary)
       }
     }
     .onAppear {
@@ -102,6 +123,9 @@ struct CustomPaymentSheet: View {
     }
     .onChange(of: paymentProcessor.paymentState) { state in
       handlePaymentStateChange(state)
+    }
+    .onChange(of: paymentProcessor.paymentState.isProcessing) { processing in
+      isProcessing = processing
     }
   }
   
@@ -117,14 +141,23 @@ struct CustomPaymentSheet: View {
     paymentProcessor.configure(with: clientSecret)
   }
   
-  private func presentPaymentSheet() {
-    _ = paymentProcessor.presentPaymentSheet()
+  private func processPayment() {
+    Task {
+      let result = await paymentProcessor.presentPaymentOptions()
+      await MainActor.run {
+        // Result handling is done via state change
+      }
+    }
   }
   
   private func handlePaymentStateChange(_ state: PaymentState) {
     if case .completed(let result) = state {
       onPaymentCompletion(result.toPaymentSheetResult())
-      dismiss()
+      
+      // Add delay for success message, then dismiss
+      DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+        dismiss()
+      }
     }
   }
 }

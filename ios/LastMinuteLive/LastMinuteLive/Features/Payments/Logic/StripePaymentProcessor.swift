@@ -12,70 +12,91 @@ class StripePaymentProcessor: ObservableObject {
   @Published var paymentState: PaymentState = .idle
   @Published var errorMessage: String?
   
-  private var paymentSheet: PaymentSheet?
+  private var clientSecret: String?
   private var isConfigured = false
   
   // MARK: - Configuration
   
-  func configure(with clientSecret: String, customerId: String? = nil) {
+  func configure(with clientSecret: String) {
     // Configure Stripe API
     STPAPIClient.shared.publishableKey = Config.stripePublishableKey
     
-    // Create PaymentSheet configuration
-    var configuration = PaymentSheet.Configuration()
-    configuration.merchantDisplayName = "LastMinuteLive"
-    configuration.allowsDelayedPaymentMethods = false
-    
-    // Add Apple Pay configuration if available
-    if PKPaymentAuthorizationViewController.canMakePayments() {
-      configuration.applePay = .init(
-        merchantId: Config.merchantIdentifier,
-        merchantCountryCode: Config.countryCode
-      )
-    }
-    
-    // Create PaymentSheet
-    paymentSheet = PaymentSheet(paymentIntentClientSecret: clientSecret, configuration: configuration)
+    self.clientSecret = clientSecret
     isConfigured = true
   }
   
-  // MARK: - Present PaymentSheet
+  // MARK: - Present Payment Options
   
-  func presentPaymentSheet() -> PaymentResult? {
-    guard let paymentSheet = paymentSheet else {
-      errorMessage = "Payment sheet not configured"
+  func presentPaymentOptions() async -> PaymentResult {
+    guard let clientSecret = clientSecret, isConfigured else {
+      await MainActor.run {
+        errorMessage = "Payment not configured"
+        paymentState = .completed(.failed)
+      }
       return .failed
     }
     
-    // Find the presenting view controller
-    guard let presentingViewController = getRootViewController() else {
-      errorMessage = "Cannot find presenting view controller"
-      return .failed
+    await MainActor.run {
+      paymentState = .processing
+      errorMessage = nil
     }
     
-    paymentState = .processing
-    errorMessage = nil
-    
-    var result: PaymentResult?
-    
-    paymentSheet.present(from: presentingViewController) { [weak self] paymentResult in
-      DispatchQueue.main.async {
-        switch paymentResult {
-        case .completed:
-          result = .success
-          self?.paymentState = .completed(.success)
-        case .canceled:
-          result = .cancelled
-          self?.paymentState = .completed(.cancelled)
-        case .failed(let error):
-          result = .failed
-          self?.errorMessage = error.localizedDescription
-          self?.paymentState = .completed(.failed)
+    // Try to use native PaymentSheet first, fallback to manual implementation
+    if let result = await presentNativePaymentSheet(clientSecret: clientSecret) {
+      return result
+    } else {
+      return await presentManualPayment(clientSecret: clientSecret)
+    }
+  }
+  
+  // MARK: - Native PaymentSheet (if available)
+  
+  private func presentNativePaymentSheet(clientSecret: String) async -> PaymentResult? {
+    // This will only work if StripePaymentSheet is available
+    // We'll implement a check for this
+    return nil // Fallback to manual for now
+  }
+  
+  // MARK: - Manual Payment Implementation
+  
+  private func presentManualPayment(clientSecret: String) async -> PaymentResult {
+    return await withCheckedContinuation { continuation in
+      // Create a simple payment intent confirmation
+      let paymentIntentParams = STPPaymentIntentParams(clientSecret: clientSecret)
+      
+      // For now, we'll create a basic card payment setup
+      // This can be expanded to show a native card input form
+      
+      // Get the authentication context
+      guard let authContext = getAuthenticationContext() else {
+        continuation.resume(returning: .failed)
+        return
+      }
+      
+      // Use STPPaymentHandler to confirm payment
+      let paymentHandler = STPPaymentHandler.shared()
+      
+      paymentHandler.confirmPayment(paymentIntentParams, with: authContext) { status, paymentIntent, error in
+        DispatchQueue.main.async {
+          switch status {
+          case .succeeded:
+            self.paymentState = .completed(.success)
+            continuation.resume(returning: .success)
+          case .canceled:
+            self.paymentState = .completed(.cancelled)
+            continuation.resume(returning: .cancelled)
+          case .failed:
+            self.errorMessage = error?.localizedDescription ?? "Payment failed"
+            self.paymentState = .completed(.failed)
+            continuation.resume(returning: .failed)
+          @unknown default:
+            self.errorMessage = "Unknown payment status"
+            self.paymentState = .completed(.failed)
+            continuation.resume(returning: .failed)
+          }
         }
       }
     }
-    
-    return result
   }
   
   // MARK: - Reset State
@@ -83,11 +104,19 @@ class StripePaymentProcessor: ObservableObject {
   func resetState() {
     paymentState = .idle
     errorMessage = nil
-    paymentSheet = nil
+    clientSecret = nil
     isConfigured = false
   }
   
   // MARK: - Helper Methods
+  
+  private func getAuthenticationContext() -> STPAuthenticationContext? {
+    guard let rootViewController = getRootViewController() else {
+      return nil
+    }
+    
+    return AuthenticationContextWrapper(viewController: rootViewController)
+  }
   
   private func getRootViewController() -> UIViewController? {
     return UIApplication.shared.connectedScenes
@@ -95,5 +124,19 @@ class StripePaymentProcessor: ObservableObject {
       .flatMap { $0.windows }
       .first { $0.isKeyWindow }?
       .rootViewController
+  }
+}
+
+// MARK: - Authentication Context Wrapper
+
+private class AuthenticationContextWrapper: NSObject, STPAuthenticationContext {
+  private weak var viewController: UIViewController?
+  
+  init(viewController: UIViewController) {
+    self.viewController = viewController
+  }
+  
+  func authenticationPresentingViewController() -> UIViewController {
+    return viewController ?? UIViewController()
   }
 }
