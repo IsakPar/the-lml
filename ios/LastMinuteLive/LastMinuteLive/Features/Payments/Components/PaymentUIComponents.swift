@@ -17,9 +17,9 @@ struct CustomTextFieldStyle: TextFieldStyle {
   }
 }
 
-// MARK: - Brand Header
+// MARK: - Payment Brand Header
 
-struct BrandHeader: View {
+struct PaymentBrandHeader: View {
   var body: some View {
     VStack(spacing: 12) {
       HStack {
@@ -447,7 +447,7 @@ struct PaymentFormContent: View {
   var body: some View {
     VStack(spacing: 24) {
       // Header with branding
-      BrandHeader()
+      PaymentBrandHeader()
       
       // Order summary
       OrderSummaryCard(orderSummary: orderSummary)
