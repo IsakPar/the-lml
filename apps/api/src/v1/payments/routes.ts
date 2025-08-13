@@ -154,15 +154,110 @@ export async function registerPaymentsRoutes(app: FastifyInstance) {
         }
       }
        if (type === 'payment_intent.succeeded') {
-        await client.query('UPDATE payments.payment_intents SET status=$1 WHERE id=$2', ['succeeded', piId]);
-        // Link to order and mark paid if present
-        const res = await client.query<{ order_id: string }>('SELECT order_id FROM payments.payment_intents WHERE id=$1', [piId]);
-        const ordId = res.rows[0]?.order_id;
-        if (ordId) await client.query('UPDATE orders.orders SET status=$1 WHERE id=$2', ['paid', ordId]);
-        // Fire-and-forget notification
-        if (ordId) { try { await notifyOrderConfirmed({ orderId: ordId, tenantId: tenant }); } catch {} }
+        console.log(`[Webhook] Payment succeeded for PaymentIntent: ${piId}`);
+        
+        // Start transaction for seat confirmation
+        await client.query('BEGIN');
+        
+        try {
+          // Find the order by PaymentIntent ID
+          const orderRes = await client.query<{ id: string; status: string }>(
+            'SELECT id, status FROM orders WHERE payment_intent_id = $1',
+            [piId]
+          );
+          
+          if (orderRes.rows.length === 0) {
+            console.error(`[Webhook] No order found for PaymentIntent: ${piId}`);
+            await client.query('ROLLBACK');
+            return;
+          }
+
+          const order = orderRes.rows[0];
+          const orderId = order.id;
+          
+          // Prevent double processing
+          if (order.status === 'confirmed' || order.status === 'paid') {
+            console.log(`[Webhook] Order ${orderId} already confirmed, skipping`);
+            await client.query('ROLLBACK');
+            return;
+          }
+
+          // Update order status to confirmed
+          await client.query(
+            'UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2',
+            ['confirmed', orderId]
+          );
+
+          // Update order lines to confirmed
+          await client.query(
+            'UPDATE order_lines SET status = $1 WHERE order_id = $2',
+            ['confirmed', orderId]
+          );
+
+          // **CRITICAL: Mark seats as SOLD so they can't be purchased again**
+          const seatUpdateResult = await client.query(
+            `UPDATE event_seats 
+             SET status = 'SOLD', version = version + 1 
+             WHERE order_id = $1 AND status = 'RESERVED'`,
+            [orderId]
+          );
+
+          console.log(`[Webhook] Marked ${seatUpdateResult.rowCount} seats as SOLD for order ${orderId}`);
+
+          // Insert into stripe_events for audit trail
+          await client.query(
+            'INSERT INTO stripe_events (event_id, type, payment_intent_id, processed) VALUES ($1, $2, $3, $4)',
+            [event?.id || null, type, piId, true]
+          );
+
+          await client.query('COMMIT');
+          console.log(`[Webhook] Successfully confirmed order ${orderId} and marked seats as SOLD`);
+          
+        } catch (error) {
+          await client.query('ROLLBACK');
+          console.error(`[Webhook] Failed to process payment_intent.succeeded for ${piId}:`, error);
+          throw error;
+        }
+
       } else if (type === 'payment_intent.payment_failed' || type === 'payment_intent.canceled') {
-        await client.query('UPDATE payments.payment_intents SET status=$1 WHERE id=$2', ['failed', piId]);
+        console.log(`[Webhook] Payment failed/canceled for PaymentIntent: ${piId}`);
+        
+        // Find and cancel the order, release seats
+        await client.query('BEGIN');
+        
+        try {
+          const orderRes = await client.query<{ id: string }>(
+            'SELECT id FROM orders WHERE payment_intent_id = $1',
+            [piId]
+          );
+          
+          if (orderRes.rows.length > 0) {
+            const orderId = orderRes.rows[0].id;
+            
+            // Update order status to failed
+            await client.query(
+              'UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2',
+              ['failed', orderId]
+            );
+
+            // Release reserved seats back to available
+            await client.query(
+              `UPDATE event_seats 
+               SET status = 'AVAILABLE', order_id = NULL, version = version + 1 
+               WHERE order_id = $1 AND status = 'RESERVED'`,
+              [orderId]
+            );
+
+            console.log(`[Webhook] Released seats for failed order ${orderId}`);
+          }
+
+          await client.query('COMMIT');
+          
+        } catch (error) {
+          await client.query('ROLLBACK');
+          console.error(`[Webhook] Failed to process payment failure for ${piId}:`, error);
+          throw error;
+        }
       }
     });
       span.setAttribute('tenantId', tenant);

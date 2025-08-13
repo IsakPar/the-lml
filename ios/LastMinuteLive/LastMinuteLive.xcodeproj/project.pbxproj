@@ -6,6 +6,14 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		D0CFAACF2E4C9F9600CB7FD8 /* Stripe in Frameworks */ = {isa = PBXBuildFile; productRef = D0CFAACE2E4C9F9600CB7FD8 /* Stripe */; };
+		D0CFAAD12E4C9F9600CB7FD8 /* StripeApplePay in Frameworks */ = {isa = PBXBuildFile; productRef = D0CFAAD02E4C9F9600CB7FD8 /* StripeApplePay */; };
+		D0CFAAD32E4C9F9600CB7FD8 /* StripeCardScan in Frameworks */ = {isa = PBXBuildFile; productRef = D0CFAAD22E4C9F9600CB7FD8 /* StripeCardScan */; };
+		D0CFAAD52E4C9F9600CB7FD8 /* StripeConnect in Frameworks */ = {isa = PBXBuildFile; productRef = D0CFAAD42E4C9F9600CB7FD8 /* StripeConnect */; };
+		D0CFAAD72E4C9F9600CB7FD8 /* StripeFinancialConnections in Frameworks */ = {isa = PBXBuildFile; productRef = D0CFAAD62E4C9F9600CB7FD8 /* StripeFinancialConnections */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		D0CFAA682E49537600CB7FD8 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +60,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D0CFAAD72E4C9F9600CB7FD8 /* StripeFinancialConnections in Frameworks */,
+				D0CFAAD32E4C9F9600CB7FD8 /* StripeCardScan in Frameworks */,
+				D0CFAACF2E4C9F9600CB7FD8 /* Stripe in Frameworks */,
+				D0CFAAD52E4C9F9600CB7FD8 /* StripeConnect in Frameworks */,
+				D0CFAAD12E4C9F9600CB7FD8 /* StripeApplePay in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +125,11 @@
 			);
 			name = LastMinuteLive;
 			packageProductDependencies = (
+				D0CFAACE2E4C9F9600CB7FD8 /* Stripe */,
+				D0CFAAD02E4C9F9600CB7FD8 /* StripeApplePay */,
+				D0CFAAD22E4C9F9600CB7FD8 /* StripeCardScan */,
+				D0CFAAD42E4C9F9600CB7FD8 /* StripeConnect */,
+				D0CFAAD62E4C9F9600CB7FD8 /* StripeFinancialConnections */,
 			);
 			productName = LastMinuteLive;
 			productReference = D0CFAA5A2E49537500CB7FD8 /* LastMinuteLive.app */;
@@ -170,6 +188,9 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
+				KnownAssetTags = (
+					New,
+				);
 				LastSwiftUpdateCheck = 1640;
 				LastUpgradeCheck = 1640;
 				TargetAttributes = {
@@ -195,6 +216,9 @@
 			);
 			mainGroup = D0CFAA512E49537500CB7FD8;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				D0CFAACD2E4C9F9600CB7FD8 /* XCRemoteSwiftPackageReference "stripe-ios" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = D0CFAA5B2E49537500CB7FD8 /* Products */;
 			projectDirPath = "";
@@ -558,6 +582,45 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		D0CFAACD2E4C9F9600CB7FD8 /* XCRemoteSwiftPackageReference "stripe-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/stripe/stripe-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 24.20.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		D0CFAACE2E4C9F9600CB7FD8 /* Stripe */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D0CFAACD2E4C9F9600CB7FD8 /* XCRemoteSwiftPackageReference "stripe-ios" */;
+			productName = Stripe;
+		};
+		D0CFAAD02E4C9F9600CB7FD8 /* StripeApplePay */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D0CFAACD2E4C9F9600CB7FD8 /* XCRemoteSwiftPackageReference "stripe-ios" */;
+			productName = StripeApplePay;
+		};
+		D0CFAAD22E4C9F9600CB7FD8 /* StripeCardScan */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D0CFAACD2E4C9F9600CB7FD8 /* XCRemoteSwiftPackageReference "stripe-ios" */;
+			productName = StripeCardScan;
+		};
+		D0CFAAD42E4C9F9600CB7FD8 /* StripeConnect */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D0CFAACD2E4C9F9600CB7FD8 /* XCRemoteSwiftPackageReference "stripe-ios" */;
+			productName = StripeConnect;
+		};
+		D0CFAAD62E4C9F9600CB7FD8 /* StripeFinancialConnections */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D0CFAACD2E4C9F9600CB7FD8 /* XCRemoteSwiftPackageReference "stripe-ios" */;
+			productName = StripeFinancialConnections;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = D0CFAA522E49537500CB7FD8 /* Project object */;
 }

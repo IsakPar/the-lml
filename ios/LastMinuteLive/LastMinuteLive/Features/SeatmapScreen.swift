@@ -155,8 +155,8 @@ struct SeatmapScreen: View {
         let totalAmount = selectedSeatNodes.count * (tiers.first?.amountMinor ?? 8500)
         
         CheckoutView(
-          orderId: "temp_order_\(UUID().uuidString)", // TODO: Create actual order first
-          amountMinor: totalAmount
+          performanceId: performanceId ?? "",
+          selectedSeats: Array(selectedSeats)
         )
         .environmentObject(app)
       }

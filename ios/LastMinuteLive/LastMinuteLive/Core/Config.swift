@@ -6,6 +6,8 @@ enum Config {
   static let merchantIdentifier: String = (ProcessInfo.processInfo.environment["APPLE_MERCHANT_ID"]) ?? "merchant.com.thankful.dev"
   static let countryCode: String = "GB"
   static let currencyCode: String = "GBP"
+  // Stripe Configuration
+  static let stripePublishableKey: String = ProcessInfo.processInfo.environment["STRIPE_PUBLISHABLE_KEY"] ?? "pk_test_..."  // Add your Stripe publishable key
 }
 
 

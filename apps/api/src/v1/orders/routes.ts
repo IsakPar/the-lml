@@ -5,15 +5,22 @@ import { problem } from '../../middleware/problem.js';
 import { createClient as createRedisClient } from 'redis';
 import { createIdemStore } from '../../../../../packages/idempotency/src/store.js';
 import { canonicalHash } from '../../../../../packages/idempotency/src/index.js';
+import Stripe from 'stripe';
 
 type CreateOrderRequest = {
+  performance_id: string;
+  seat_ids: string[];
   currency?: string;
   total_minor?: number;
-  lines?: Array<{ sku?: string; performance_id?: string; seat_id?: string; price_minor?: number }>; // minimal placeholder
 };
 
 export async function registerOrdersRoutes(app: FastifyInstance) {
   const rlMutating = createRateLimitMiddleware({ limit: 10, windowSeconds: 60 });
+  
+  // Initialize Stripe
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+    apiVersion: '2024-12-18.acacia',
+  });
 
   // Idempotency store: in tests use in-memory; otherwise Redis
   let idemStore: ReturnType<typeof createIdemStore>;
@@ -61,44 +68,113 @@ export async function registerOrdersRoutes(app: FastifyInstance) {
       return reply.code(422).type('application/problem+json').send(problem(422, 'invalid_idempotency_key', 'Idempotency-Key required', 'urn:thankful:idem:missing', req.ctx?.traceId));
     }
     const body = (req.body || {}) as CreateOrderRequest;
+    const { performance_id, seat_ids } = body;
     const currency = (body.currency || process.env.DEFAULT_CURRENCY || 'USD').toString();
-    const totalMinor = Number.isFinite(body.total_minor) ? Number(body.total_minor) : 0;
 
-    // Idempotency begin
-    const tenant = req.ctx.orgId as string;
-    const contentType = String(req.headers['content-type'] || 'application/json');
-    const bodyHash = canonicalHash({ method: 'POST', path: '/v1/orders', contentType, body: body });
-    const storeKey = `idem:v1:orders:create:${tenant}:${bodyHash}`;
-    const begin = await idemStore.begin(storeKey, req.ctx.requestId, 180);
-    if (begin.state === 'in-progress' && begin.ownerRequestId !== req.ctx.requestId) {
-      reply.header('Idempotency-Status', 'in-progress');
-      return reply.code(202).send({ state: 'in-progress' });
-    }
-    if (begin.state === 'committed') {
-      reply.header('Idempotency-Status', 'cached');
-      if (begin.responseBody) {
-        try { return reply.code(begin.status).send(JSON.parse(begin.responseBody)); } catch {}
-      }
-      return reply.code(begin.status).send({ cached: true });
-    }
-
-    // Insert order
-    const db = getDatabase();
-    let orderId: string = '';
-    await db.withTenant(tenant, async (client) => {
-      const res = await client.query<{ id: string }>(
-        'INSERT INTO orders.orders(status, total_minor, currency) VALUES ($1, $2, $3) RETURNING id',
-        ['pending', totalMinor, currency]
+    // Validation
+    if (!performance_id || !seat_ids || !Array.isArray(seat_ids) || seat_ids.length === 0) {
+      return reply.code(422).type('application/problem+json').send(
+        problem(422, 'invalid_request', 'performance_id and seat_ids required', 'urn:thankful:orders:missing_fields', req.ctx?.traceId)
       );
-      orderId = res.rows[0].id;
-    });
+    }
 
-    const payload = { order_id: orderId, status: 'pending', currency, total_minor: totalMinor, trace_id: req.ctx?.traceId };
-    const headersHash = 'h0';
-    const respHash = canonicalHash({ method: 'POST', path: '/v1/orders', contentType: 'application/json', body: payload });
-    await idemStore.commit(storeKey, { status: 201, headersHash, bodyHash: respHash, responseBody: JSON.stringify(payload) }, 24 * 3600);
-    reply.header('Idempotency-Status', 'new');
-    return reply.code(201).send(payload);
+    // TODO: Verify seats are held by this user (Redis check)
+    // For now, we'll proceed assuming seats are properly held
+
+    const db = getDatabase();
+    const tenant = req.ctx.orgId as string;
+    let orderId: string = '';
+    let clientSecret: string = '';
+    
+    try {
+      await db.withTenant(tenant, async (client) => {
+        // Start transaction
+        await client.query('BEGIN');
+        
+        try {
+          // Calculate total amount (using simple pricing for now - $25 per seat)
+          const pricePerSeat = 2500; // £25.00 in pence  
+          const totalMinor = seat_ids.length * pricePerSeat;
+
+          // Create order
+          const orderResult = await client.query<{ id: string }>(
+            'INSERT INTO orders (status, total_amount, currency, created_at, updated_at) VALUES ($1, $2, $3, NOW(), NOW()) RETURNING id',
+            ['pending', totalMinor, currency]
+          );
+          orderId = orderResult.rows[0].id;
+
+          // Create order lines for each seat
+          for (const seatId of seat_ids) {
+            await client.query(
+              'INSERT INTO order_lines (order_id, seat_id, price, status) VALUES ($1, $2, $3, $4)',
+              [orderId, seatId, pricePerSeat, 'pending']
+            );
+          }
+
+          // Reserve seats in event_seats table
+          for (const seatId of seat_ids) {
+            const updateResult = await client.query(
+              `UPDATE event_seats SET status = 'RESERVED', order_id = $1, version = version + 1 
+               WHERE seat_id = $2 AND status = 'AVAILABLE' AND event_id = 
+               (SELECT id FROM events WHERE id = (SELECT event_id FROM venues.performances WHERE id = $3))`,
+              [orderId, seatId, performance_id]
+            );
+            
+            if (updateResult.rowCount === 0) {
+              throw new Error(`Seat ${seatId} is no longer available`);
+            }
+          }
+
+          // Create Stripe PaymentIntent
+          const paymentIntent = await stripe.paymentIntents.create({
+            amount: totalMinor,
+            currency: currency.toLowerCase(),
+            metadata: {
+              order_id: orderId,
+              performance_id,
+              seat_count: seat_ids.length.toString(),
+              org_id: tenant
+            },
+            automatic_payment_methods: {
+              enabled: true,
+            },
+          });
+
+          clientSecret = paymentIntent.client_secret || '';
+
+          // Update order with PaymentIntent ID
+          await client.query(
+            'UPDATE orders SET payment_intent_id = $1, updated_at = NOW() WHERE id = $2',
+            [paymentIntent.id, orderId]
+          );
+
+          await client.query('COMMIT');
+          
+        } catch (error) {
+          await client.query('ROLLBACK');
+          throw error;
+        }
+      });
+
+      const payload = { 
+        order_id: orderId, 
+        client_secret: clientSecret,
+        status: 'pending', 
+        currency, 
+        total_minor: seat_ids.length * 2500,
+        performance_id,
+        seat_count: seat_ids.length,
+        trace_id: req.ctx?.traceId 
+      };
+      
+      return reply.code(201).send(payload);
+      
+    } catch (error) {
+      console.error('Order creation failed:', error);
+      return reply.code(422).type('application/problem+json').send(
+        problem(422, 'order_creation_failed', error instanceof Error ? error.message : 'Unknown error', 'urn:thankful:orders:creation_failed', req.ctx?.traceId)
+      );
+    }
   });
 
   // GET /v1/orders/:id
