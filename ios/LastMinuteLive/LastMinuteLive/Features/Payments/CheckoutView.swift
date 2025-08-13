@@ -1,18 +1,14 @@
 import SwiftUI
 import Stripe
-// import StripePaymentsUI // PaymentSheet types not found in v24.20.0
 
 struct CheckoutView: View {
   @EnvironmentObject var app: AppState
   let performanceId: String
   let selectedSeats: [String]
-  // @State private var paymentSheetPresented = false
-  // @State private var paymentResult: PaymentSheetResult?
+  @State private var customPaymentSheetPresented = false
   @State private var isLoading = false
   @State private var orderResponse: CreateOrderResponse?
   @State private var errorMessage: String?
-  
-  // @State private var paymentSheet: PaymentSheet?
   
   var totalAmount: Int {
     selectedSeats.count * 2500 // £25 per seat
@@ -62,8 +58,8 @@ struct CheckoutView: View {
         // Order created successfully, show retry button if needed
         Button(action: {
           if let response = orderResponse {
-            // configurePaymentSheet(clientSecret: response.client_secret) // Disabled until PaymentSheet resolved
-            print("[Checkout] Order created: \(response.order_id) - PaymentSheet integration pending")
+            // Automatically show custom payment sheet when order is created
+            customPaymentSheetPresented = true
           }
         }) {
           HStack {
@@ -78,7 +74,7 @@ struct CheckoutView: View {
           .cornerRadius(12)
         }
       } else {
-        // Fallback button if auto-start failed
+        // Manual retry button if auto-start failed
         Button(action: createOrderAndShowPaymentSheet) {
           HStack {
             Image(systemName: "creditcard")
@@ -106,7 +102,16 @@ struct CheckoutView: View {
     .padding()
     .navigationTitle("Checkout")
     .navigationBarTitleDisplayMode(.inline)
-    // .paymentSheet(isPresented: $paymentSheetPresented, paymentSheet: paymentSheet, onCompletion: onPaymentCompletion) // Disabled until PaymentSheet types resolved
+    .sheet(isPresented: $customPaymentSheetPresented) {
+      if let response = orderResponse {
+        CustomPaymentSheet(
+          clientSecret: response.client_secret,
+          orderTotal: response.total_minor,
+          seatCount: response.seat_count
+        )
+        .environmentObject(app)
+      }
+    }
     .onAppear {
       // Auto-start order creation when checkout view appears
       if !isLoading && orderResponse == nil {
@@ -140,8 +145,9 @@ struct CheckoutView: View {
         let response = try JSONDecoder().decode(CreateOrderResponse.self, from: responseData)
         self.orderResponse = response
         
-                        // configurePaymentSheet(clientSecret: response.client_secret) // Disabled until PaymentSheet resolved
-                print("[Checkout] Order \(response.order_id) created successfully - PaymentSheet integration pending")
+                        // Order created successfully - trigger custom payment sheet
+                print("[Checkout] Order \(response.order_id) created successfully - showing custom payment sheet")
+                customPaymentSheetPresented = true
         
       } catch {
         errorMessage = "Failed to create order: \(error.localizedDescription)"
@@ -151,37 +157,8 @@ struct CheckoutView: View {
     }
   }
   
-  // private func configurePaymentSheet(clientSecret: String) {
-  //   STPAPIClient.shared.publishableKey = Config.stripePublishableKey
-  //   
-  //   var configuration = PaymentSheet.Configuration()
-  //   configuration.merchantDisplayName = "LastMinuteLive"
-  //   configuration.allowsDelayedPaymentMethods = true
-  //   configuration.applePay = .init(
-  //     merchantId: Config.merchantIdentifier,
-  //     merchantCountryCode: Config.countryCode
-  //   )
-  //   
-  //   paymentSheet = PaymentSheet(paymentIntentClientSecret: clientSecret, configuration: configuration)
-  //   paymentSheetPresented = true
-  // }
-  
-  // private func onPaymentCompletion(result: PaymentSheetResult) {
-  //   paymentResult = result
-  //   
-  //   switch result {
-  //   case .completed:
-  //     // Payment successful - seats are now confirmed via webhook
-  //     errorMessage = "Payment completed successfully! 🎉"
-  //     // TODO: Navigate to success screen or dismiss checkout
-  //     
-  //   case .canceled:
-  //     errorMessage = "Payment was cancelled"
-  //     
-  //   case .failed(let error):
-  //     errorMessage = "Payment failed: \(error.localizedDescription)"
-  //   }
-  // }
+  // MARK: - Custom Payment Sheet Integration
+  // No additional functions needed - CustomPaymentSheet handles everything internally
 }
 
 // MARK: - Data Models
