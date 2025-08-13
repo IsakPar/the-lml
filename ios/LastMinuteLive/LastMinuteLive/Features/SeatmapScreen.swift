@@ -1,6 +1,11 @@
 import SwiftUI
-// Import permissive seatmap types from sibling iOS module
-// Files are included in the workspace; no module needed
+
+private struct Tier { 
+  let code: String
+  let name: String
+  let amountMinor: Int
+  let color: String?
+}
 
 struct SeatmapScreen: View {
   @EnvironmentObject var app: AppState
@@ -11,231 +16,436 @@ struct SeatmapScreen: View {
   @State private var error: String? = nil
   @State private var loading = true
   @State private var tiers: [Tier] = []
+  @State private var selectedSeats: Set<String> = []
+  @State private var seatAvailability: [String: String] = [:] // seat_id -> status
+  @State private var seatHoldService: SeatHoldService? = nil
+  @State private var performanceId: String? = nil
+  @State private var showCheckout = false
   
   var body: some View {
-    ZStack(alignment: .topLeading) {
+    ZStack {
       StageKit.bgGradient.ignoresSafeArea()
-      Group {
-        if loading {
-          ProgressView().tint(.white)
-        } else if let e = error {
-          VStack(spacing: 12) { Image(systemName: "exclamationmark.triangle"); Text(e) }
-        } else if let m = model {
-          ScrollView([.vertical, .horizontal]) {
-            GeometryReader { geo in
-              let canvas = geo.size
-              let options = SeatmapTransformOptions()
-              let res = try? computeSeatmapTransform(seats: m.seats, canvasSize: canvas, options: options)
-              let scale = res?.scale ?? 1.0
-              let flippedY = res?.flippedY ?? false
-              let dx = res?.dx ?? 0
-              let dy = res?.dy ?? 0
-              let rPx = res?.seatRadiusPx ?? 8
-              let warn = res?.warnings ?? []
-              if let res = res {
-                print("[Seatmap] count=\(m.seats.count) bounds=(\(res.minX),\(res.minY))-(\(res.maxX),\(res.maxY)) world=(\(res.worldW)x\(res.worldH)) scale=\(res.scale) flippedY=\(res.flippedY) dxdy=(\(res.dx),\(res.dy)) rPx=\(res.seatRadiusPx) clamped=\(res.scaleClamped)")
-              }
-              ZStack(alignment: .topLeading) {
-                Rectangle().fill(Color.white.opacity(0.04))
-                ForEach(m.seats, id: \.id) { seat in
-                  let cx = (CGFloat(seat.x) - (res?.minX ?? 0)) * scale + dx
-                  let cyRaw = (CGFloat(seat.y) - (res?.minY ?? 0)) * scale
-                  let cy = (flippedY ? (canvas.height - cyRaw) : cyRaw) + dy
-                  let w = max(CGFloat(seat.w) * scale, rPx)
-                  let h = max(CGFloat(seat.h) * scale, rPx)
-                  RoundedRectangle(cornerRadius: 2)
-                    .fill(fillColor(for: seat))
-                    .frame(width: w, height: h)
-                    .position(x: cx + w/2, y: cy + h/2)
-                }
-                if m.seats.isEmpty {
-                  Text("No seats parsed\nCheck JSON keys: seats[x,y,row,section]")
-                    .multilineTextAlignment(.center)
-                    .foregroundColor(.yellow)
-                    .padding(8)
-                    .background(Color.black.opacity(0.4))
-                    .cornerRadius(8)
-                    .position(x: 160, y: 80)
-                }
-                if !warn.isEmpty {
-                  VStack(alignment: .leading, spacing: 2) {
-                    ForEach(warn, id: \.self) { w in Text(w).font(.caption2).foregroundColor(.yellow) }
-                  }
-                  .padding(6)
-                  .background(Color.black.opacity(0.3))
-                  .cornerRadius(6)
-                  .padding(8)
-                }
-                Text("STAGE")
-                  .font(.caption.bold())
-                  .padding(6)
-                  .background(Color.black.opacity(0.5))
-                  .cornerRadius(6)
-                  .offset(x: 8, y: 8)
-              }
-              .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
-              .padding(16)
-            }
-          }
-          if !warnings.isEmpty {
-            VStack(alignment: .leading, spacing: 4) {
-              ForEach(warnings, id: \.self) { Text($0).font(.caption2).foregroundColor(.yellow) }
-            }
-            .padding(10)
-            .background(Color.black.opacity(0.3))
-            .cornerRadius(8)
-            .padding(.top, 56)
-            .padding(.leading, 16)
-          }
-        }
-      }
-      .padding(.top, tiers.isEmpty ? 58 : 100)
+      
       VStack(spacing: 0) {
-        ZStack {
-          HStack { // left for layout; back button
-            Button(action: { dismiss() }) {
-              Image(systemName: "chevron.backward")
-                .foregroundColor(.white)
-                .padding(8)
-                .background(Color.white.opacity(0.08))
-                .clipShape(Circle())
-            }
-            Spacer()
+        // Header section
+        VStack(spacing: 12) {
+          // Title bar with back button
+          SlimTitleBar(
+            title: show.title,
+            subtitle: show.venue,
+            onBack: { dismiss() }
+          )
+          
+          // Legend - show unique section colors from seatmap
+          if let model = model, !model.seats.isEmpty {
+            SectionLegendBar(seats: model.seats)
+          } else if !tiers.isEmpty {
+            LegendBar(tiers: Dictionary(uniqueKeysWithValues: tiers.map { ($0.code, $0.amountMinor) }))
           }
-          Text(show.title)
-            .font(.headline)
-            .lineLimit(1)
-            .foregroundColor(.white)
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
-        .padding(.bottom, 10)
-        .background(
-          LinearGradient(colors: [Color.black.opacity(0.55), Color.black.opacity(0.0)], startPoint: .top, endPoint: .bottom)
-            .overlay(Rectangle().frame(height: 0.5).foregroundColor(Color.white.opacity(0.15)), alignment: .bottom)
-            .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 8)
-        )
-        if !tiers.isEmpty {
-          ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
-              ForEach(tiers, id: \.code) { t in
-                HStack(spacing: 8) {
-                  RoundedRectangle(cornerRadius: 3)
-                    .fill(Color(hex: t.color ?? "#999999").opacity(0.9))
-                    .frame(width: 14, height: 10)
-                    .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.white.opacity(0.2), lineWidth: 0.5))
-                  Text("\(t.name) \(formatGBP(t.amountMinor))")
-                    .font(.caption)
-                    .foregroundColor(.white.opacity(0.92))
+        .background(Color.clear)
+        
+        // Main seatmap content
+        Group {
+          if loading {
+            ProgressView().tint(.white)
+              .frame(maxWidth: .infinity, maxHeight: .infinity)
+          } else if let e = error {
+            VStack(spacing: 12) {
+              Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 44))
+                .foregroundColor(.orange)
+              Text(e)
+                .font(.body)
+                .foregroundColor(.white)
+                .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+          } else if let m = model {
+            GeometryReader { geo in
+              let rawCanvas = geo.size
+              let canvas = (rawCanvas.width < 100 || rawCanvas.height < 100) ? UIScreen.main.bounds.size : rawCanvas
+              let options: SeatmapTransformOptions = {
+                var opts = SeatmapTransformOptions()
+                opts.flipOverride = false
+                opts.paddingPx = 15.0
+                opts.useOptimalScaling = true
+                opts.usePerfectCentering = true
+                opts.centeringOffsetX = -37.5
+                return opts
+              }()
+              let worldSize = CGSize(width: m.viewportWidth, height: m.viewportHeight)
+              let res = try? computeSeatmapTransform(seats: m.seats, worldSize: worldSize, canvasSize: canvas, options: options)
+              
+              ScrollView([.vertical, .horizontal]) {
+                ZStack(alignment: .topLeading) {
+                  Rectangle().fill(Color.white.opacity(0.04))
+                  
+                  SeatsLayerView(
+                    seats: m.seats,
+                    res: res,
+                    canvas: canvas,
+                    selectedSeats: selectedSeats,
+                    seatAvailability: seatAvailability,
+                    seatHoldService: seatHoldService,
+                    onSeatTap: { seatId in
+                      Task {
+                        await handleSeatTap(seatId: seatId)
+                      }
+                    }
+                  )
+                  
+                  // Stage visualization
+                  ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                      .fill(LinearGradient(
+                        gradient: Gradient(colors: [Color.black.opacity(0.8), Color.gray.opacity(0.6)]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                      ))
+                      .stroke(Color.gold, lineWidth: 2)
+                      .frame(width: canvas.width * 0.6, height: 32)
+                    Text("STAGE")
+                      .font(.caption.bold())
+                      .foregroundColor(Color.gold.opacity(0.9))
+                      .offset(y: -20)
+                  }
+                  .position(x: canvas.width / 2, y: 24)
+                  
+                  if m.seats.isEmpty {
+                    Text("No seats parsed")
+                      .foregroundColor(.yellow)
+                      .position(x: 160, y: 80)
+                  }
                 }
-                .padding(.vertical, 6)
-                .padding(.horizontal, 10)
-                .background(Color.white.opacity(0.05))
-                .clipShape(Capsule())
+                .frame(width: canvas.width, height: canvas.height, alignment: .topLeading)
               }
             }
-            .padding(.horizontal, 16)
           }
-          .background(
-            Color.black.opacity(0.35)
-              .overlay(Rectangle().frame(height: 0.5).foregroundColor(Color.white.opacity(0.12)), alignment: .bottom)
-          )
         }
+        
+        // Reserve space for shopping basket - always present
+        Color.clear.frame(height: selectedSeats.isEmpty ? 100 : 140)
       }
     }
-    .onAppear(perform: load)
+    .overlay(alignment: .bottom) {
+      // Shopping basket - always visible
+      let selectedSeatNodes = model?.seats.filter { selectedSeats.contains($0.id) } ?? []
+      let pricePerSeat = tiers.first?.amountMinor ?? 8500
+      
+      ShoppingBasket(
+        selectedSeats: selectedSeatNodes,
+        pricePerSeat: pricePerSeat,
+        onCheckout: {
+          print("Checkout with \(selectedSeats.count) seats")
+          showCheckout = true
+        },
+        onRemoveSeat: { seatId in
+          withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            _ = selectedSeats.remove(seatId)
+          }
+        }
+      )
+      .padding(.bottom, 0)
+    }
+    .navigationBarHidden(true)
+    .sheet(isPresented: $showCheckout) {
+      if !selectedSeats.isEmpty {
+        let selectedSeatNodes = model?.seats.filter { selectedSeats.contains($0.id) } ?? []
+        let totalAmount = selectedSeatNodes.count * (tiers.first?.amountMinor ?? 8500)
+        
+        CheckoutView(
+          orderId: "temp_order_\(UUID().uuidString)", // TODO: Create actual order first
+          amountMinor: totalAmount
+        )
+        .environmentObject(app)
+      }
+    }
+    .onAppear { 
+      seatHoldService = SeatHoldService(apiClient: app.api)
+      load() 
+    }
   }
+  
   private func load() {
     loading = true; error = nil
     Task { @MainActor in
       do {
+        // Authenticate for development if not already authenticated
+        await app.authenticateForDevelopment()
+        print("[Seatmap] Fetching seatmap for show: \(show.id)")
         let (res, _) = try await app.api.request(path: "/v1/shows/" + show.id + "/seatmap", headers: ["X-Org-ID": Config.defaultOrgId])
         let seatmapId: String
-        if let o = try JSONSerialization.jsonObject(with: res) as? [String: Any], let s = o["seatmapId"] as? String { seatmapId = s } else { throw NSError(domain: "seatmap", code: 404) }
+        if let o = try JSONSerialization.jsonObject(with: res) as? [String: Any], let s = o["seatmapId"] as? String { 
+          seatmapId = s 
+        } else { throw NSError(domain: "seatmap", code: 404) }
+        
         let (data, _) = try await app.api.request(path: "/v1/seatmaps/" + seatmapId, headers: ["X-Org-ID": Config.defaultOrgId])
         if let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+          let raw = (obj["data"] as? [String: Any]) ?? obj
           do {
-            let raw = (obj["data"] as? [String: Any]) ?? obj
             let parsed0 = try SeatmapParser.parse(raw: raw)
-            // Diagnostics
             print("[Seatmap] fetched seats=\(parsed0.seats.count)")
-            // If viewport missing, derive view from densest cluster (robust fit)
-            if parsed0.viewportWidth <= 1 || parsed0.viewportHeight <= 1 {
-              let seats = parsed0.seats
-              guard !seats.isEmpty else { throw NSError(domain: "seatmap", code: 422) }
-              let xsRaw = seats.map { $0.x }
-              let ysRaw = seats.map { $0.y }
-              let minXR = xsRaw.min() ?? 0, maxXR = xsRaw.max() ?? 1
-              let minYR = ysRaw.min() ?? 0, maxYR = ysRaw.max() ?? 1
-              let gridN = 20
-              let dx = max(1e-6, (maxXR - minXR) / Double(gridN))
-              let dy = max(1e-6, (maxYR - minYR) / Double(gridN))
-              var grid = Array(repeating: Array(repeating: 0, count: gridN), count: gridN)
-              for s in seats {
-                let ix = max(0, min(gridN-1, Int((s.x - minXR) / dx)))
-                let iy = max(0, min(gridN-1, Int((s.y - minYR) / dy)))
-                grid[iy][ix] += 1
-              }
-              var best = (ix: 0, iy: 0, count: -1)
-              for iy in 0..<gridN { for ix in 0..<gridN { if grid[iy][ix] > best.count { best = (ix, iy, grid[iy][ix]) } } }
-              let radius = 2
-              var cMinX = max(0, best.ix - radius), cMaxX = min(gridN-1, best.ix + radius)
-              var cMinY = max(0, best.iy - radius), cMaxY = min(gridN-1, best.iy + radius)
-              let minX = minXR + Double(cMinX) * dx
-              let maxX = minXR + Double(cMaxX + 1) * dx
-              let minY = minYR + Double(cMinY) * dy
-              let maxY = minYR + Double(cMaxY + 1) * dy
-              var inCluster = 0
-              for s in seats { if s.x >= minX && s.x <= maxX && s.y >= minY && s.y <= maxY { inCluster += 1 } }
-              print("[Seatmap] cluster seats=\(inCluster) bounds x:[\(minX),\(maxX)] y:[\(minY),\(maxY)]")
-              let pad: Double = 40
-              let derived = SeatmapModel(
-                id: parsed0.id,
-                name: parsed0.name,
-                version: parsed0.version,
-                viewportWidth: max(240, (maxX - minX) + 2*pad),
-                viewportHeight: max(240, (maxY - minY) + 2*pad),
-                sections: parsed0.sections,
-                seats: seats.map { s in
-                  SeatNode(id: s.id, sectionId: s.sectionId, x: s.x - minX + pad, y: s.y - minY + pad, w: s.w, h: s.h, colorHex: s.colorHex, priceLevelId: s.priceLevelId, attrs: s.attrs)
-                },
-                priceLevels: parsed0.priceLevels,
-                warnings: parsed0.warnings + ["viewport derived from densest cluster"]
-              )
-              self.model = derived
-              self.warnings = derived.warnings
-            } else {
-              self.model = parsed0
-              self.warnings = parsed0.warnings
-            }
+            self.model = parsed0
+            self.warnings = parsed0.warnings
           } catch {
             self.error = "Failed to parse seatmap: \(error.localizedDescription)"
           }
         } else { self.error = "Invalid seatmap JSON" }
-        // Fetch price tiers for legend
+        
+        // Fetch price tiers
         let (ptData, _) = try await app.api.request(path: "/v1/shows/" + show.id + "/price-tiers", headers: ["X-Org-ID": Config.defaultOrgId])
-        if let o = try JSONSerialization.jsonObject(with: ptData) as? [String: Any], let arr = o["data"] as? [[String: Any]] {
-          self.tiers = arr.compactMap { d in
-            let amt = (d["amount_minor"] as? NSNumber)?.intValue ?? d["amount_minor"] as? Int ?? 0
-            guard let code = d["code"] as? String, let name = d["name"] as? String else { return nil }
-            return Tier(code: code, name: name, amountMinor: amt, color: d["color"] as? String)
+        if let ptObj = try JSONSerialization.jsonObject(with: ptData) as? [String: Any],
+           let ptArray = ptObj["data"] as? [[String: Any]] {
+          self.tiers = ptArray.compactMap { dict in
+            guard let code = dict["code"] as? String,
+                  let name = dict["name"] as? String,
+                  let amountMinor = dict["amount_minor"] as? Int else { return nil }
+            return Tier(code: code, name: name, amountMinor: amountMinor, color: dict["color"] as? String)
+          }
+        }
+        
+        // Fetch real seat availability from Postgres
+        let (availData, _) = try await app.api.request(path: "/v1/shows/" + show.id + "/seat-availability", headers: ["X-Org-ID": Config.defaultOrgId])
+        if let availObj = try JSONSerialization.jsonObject(with: availData) as? [String: Any] {
+          if let availMap = availObj["data"] as? [String: String] {
+            self.seatAvailability = availMap
+            print("[Seatmap] Loaded seat availability: \(availMap.count) seats")
+          }
+          if let perfId = availObj["performance_id"] as? String {
+            self.performanceId = perfId
+            print("[Seatmap] Performance ID: \(perfId)")
           }
         }
       } catch { self.error = error.localizedDescription }
       self.loading = false
     }
   }
+  
+  private func fillColorForTier(_ tierCode: String) -> Color {
+    switch tierCode {
+    case "premium": 
+      return Color(.sRGB, red: 0.7, green: 0.5, blue: 0.9, opacity: 1.0)
+    case "standard": 
+      return Color(.sRGB, red: 0.4, green: 0.6, blue: 0.9, opacity: 1.0)
+    case "elevated_premium": 
+      return Color(.sRGB, red: 0.2, green: 0.7, blue: 0.6, opacity: 1.0)
+    case "elevated_standard": 
+      return Color(.sRGB, red: 0.9, green: 0.7, blue: 0.3, opacity: 1.0)
+    case "budget": 
+      return Color(.sRGB, red: 0.8, green: 0.4, blue: 0.4, opacity: 1.0)
+    case "restricted": 
+      return Color(.sRGB, red: 0.5, green: 0.5, blue: 0.5, opacity: 1.0)
+    default:
+      return Color(.sRGB, red: 0.6, green: 0.6, blue: 0.6, opacity: 1.0)
+    }
+  }
+  
+  private func formatGBP(_ minor: Int) -> String { 
+    "£" + String(format: "%.0f", Double(minor)/100.0) 
+  }
+  
+  private func handleSeatTap(seatId: String) async {
+    guard let service = seatHoldService, let perfId = performanceId else {
+      print("[Seatmap] Missing hold service or performance ID")
+      return
+    }
+    
+    // Check if seat is available for selection
+    let seatStatus = seatAvailability[seatId] ?? "available"
+    if seatStatus != "available" {
+      print("[Seatmap] Seat \(seatId) is not available (status: \(seatStatus))")
+      return
+    }
+    
+    if selectedSeats.contains(seatId) {
+      // User is deselecting - release hold and remove from selection
+      await MainActor.run {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+          selectedSeats.remove(seatId)
+        }
+      }
+      service.releaseSeats([seatId])
+      
+    } else {
+      // User is selecting - attempt to hold seat
+      do {
+        try await service.holdSeats([seatId], performanceId: perfId)
+        
+        // Hold successful - add to selection
+        await MainActor.run {
+          withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            selectedSeats.insert(seatId)
+          }
+        }
+        
+      } catch let error as SeatHoldError {
+        await MainActor.run {
+          // Show error to user
+          switch error {
+          case .conflict:
+            self.error = "This seat is no longer available"
+          case .holdFailed(let reason):
+            self.error = "Could not select seat: \(reason)"
+          case .networkError:
+            self.error = "Network error - please try again"
+          }
+        }
+        
+        // Clear error after 3 seconds
+        Task {
+          try await Task.sleep(nanoseconds: 3_000_000_000)
+          await MainActor.run {
+            if self.error != nil {
+              self.error = nil
+            }
+          }
+        }
+        
+      } catch {
+        await MainActor.run {
+          self.error = "Could not select seat: \(error.localizedDescription)"
+        }
+      }
+    }
+  }
+  
+  private struct SeatsLayerView: View {
+    let seats: [SeatNode]
+    let res: SeatmapTransformResult?
+    let canvas: CGSize
+    let selectedSeats: Set<String>
+    let seatAvailability: [String: String]
+    let seatHoldService: SeatHoldService?
+    let onSeatTap: (String) -> Void
+    
+    var body: some View {
+      let scale = res?.scale ?? 1.0
+      let flippedY = res?.flippedY ?? false
+      let dx = res?.dx ?? 0
+      let dy = res?.dy ?? 0
+      let rPx = res?.seatRadiusPx ?? 8
+      let minX = res?.minX ?? 0
+      let minY = res?.minY ?? 0
+      let worldH = res?.worldH ?? 0
+      
+      ForEach(Array(seats.enumerated()), id: \.element.id) { index, seat in
+        let isLargeBlock = seat.w > 0.05 || seat.h > 0.05
+        // Make seats slightly wider than tall for realistic proportions (1.3:1 ratio)
+        let seatWidth: CGFloat = isLargeBlock ? seat.w * scale : rPx * 2.6
+        let seatHeight: CGFloat = isLargeBlock ? seat.h * scale : rPx * 2.0
+        let width: CGFloat = seatWidth
+        let height: CGFloat = seatHeight
+        let x = seat.x * scale + dx
+        let y = flippedY ? (worldH - seat.y) * scale + dy : seat.y * scale + dy
+        let cx = x + width / 2.0
+        let cy = y + height / 2.0
+        
+        Button(action: { 
+          // Only allow selection of available seats (not reserved/booked)
+          if !isReserved(seat) {
+            onSeatTap(seat.id) 
+          }
+        }) {
+          Group {
+            if isLargeBlock {
+              RoundedRectangle(cornerRadius: 8)
+                .fill(fillColor(for: seat))
+                .overlay(
+                  RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.black.opacity(0.2), lineWidth: 2)
+                )
+            } else {
+              // REALISTIC SEAT SHAPE - Rounded rectangle like actual theater seats
+              RoundedRectangle(cornerRadius: 4)
+                .fill(fillColor(for: seat))
+                .overlay(
+                  RoundedRectangle(cornerRadius: 4)
+                    .stroke(Color.black.opacity(0.15), lineWidth: 0.8)
+                )
+                .overlay(
+                  // Add subtle seat texture/highlight
+                  RoundedRectangle(cornerRadius: 4)
+                    .fill(
+                      LinearGradient(
+                        colors: [
+                          Color.white.opacity(0.1),
+                          Color.clear,
+                          Color.black.opacity(0.05)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                      )
+                    )
+                )
+            }
+          }
+          .frame(width: width, height: height)
+            .scaleEffect(selectedSeats.contains(seat.id) ? 1.1 : 1.0)
+            .shadow(
+              color: selectedSeats.contains(seat.id) ? StageKit.brandEnd.opacity(0.4) : Color.clear,
+              radius: selectedSeats.contains(seat.id) ? 8 : 0,
+              x: 0, y: 2
+            )
+        }
+        .position(x: cx, y: cy)
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: selectedSeats.contains(seat.id))
+      }
+    }
+    
+    private func isReserved(_ seat: SeatNode) -> Bool {
+      // Check real seat availability from backend
+      let status = seatAvailability[seat.id] ?? "available"
+      return status != "available" // Any non-available status means reserved/sold/held
+    }
+    
+    private func fillColor(for seat: SeatNode) -> Color {
+      // PRIORITY 1: Selected seats = WHITE
+      if selectedSeats.contains(seat.id) {
+        return Color.white
+      }
+      
+      // PRIORITY 2: Reserved/booked seats = GREY
+      if isReserved(seat) {
+        return Color.gray.opacity(0.7)
+      }
+      
+      // PRIORITY 3: Available seats = section color from seatmap
+      if let colorHex = seat.colorHex, !colorHex.isEmpty {
+        return Color(hex: colorHex).opacity(0.85)
+      }
+      
+      // Fallback to price tier color
+      guard let priceTier = seat.priceLevelId else { 
+        return fillColorForTier("unknown").opacity(0.8)
+      }
+      return fillColorForTier(priceTier).opacity(0.85)
+    }
+    
+    private func fillColorForTier(_ tierCode: String) -> Color {
+      switch tierCode {
+      case "premium": 
+        return Color(.sRGB, red: 0.7, green: 0.5, blue: 0.9, opacity: 1.0)
+      case "standard": 
+        return Color(.sRGB, red: 0.4, green: 0.6, blue: 0.9, opacity: 1.0)
+      case "elevated_premium": 
+        return Color(.sRGB, red: 0.2, green: 0.7, blue: 0.6, opacity: 1.0)
+      case "elevated_standard": 
+        return Color(.sRGB, red: 0.9, green: 0.7, blue: 0.3, opacity: 1.0)
+      case "budget": 
+        return Color(.sRGB, red: 0.8, green: 0.4, blue: 0.4, opacity: 1.0)
+      case "restricted": 
+        return Color(.sRGB, red: 0.5, green: 0.5, blue: 0.5, opacity: 1.0)
+      default:
+        return Color(.sRGB, red: 0.6, green: 0.6, blue: 0.6, opacity: 1.0)
+      }
+    }
+  }
 }
 
-// Coloring by tier or fallback seat color
-private func fillColor(for seat: SeatNode) -> Color {
-  if let hex = seat.colorHex { return Color(hex: hex).opacity(0.85) }
-  return Color.green.opacity(0.75)
-}
-
-private struct Tier { let code: String; let name: String; let amountMinor: Int; let color: String? }
-private func formatGBP(_ minor: Int) -> String { "£" + String(format: "%.0f", Double(minor)/100.0) }
 private extension Color {
+  static let gold = Color(.sRGB, red: 0.85, green: 0.65, blue: 0.13, opacity: 1.0)
+  
   init(hex: String) {
     let s = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#")).lowercased()
     var v: UInt64 = 0

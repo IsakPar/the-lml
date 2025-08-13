@@ -16,15 +16,35 @@ final class ApiClient {
     url.append(path: path)
     var req = URLRequest(url: url)
     req.httpMethod = method
+    
+    // Disable caching for seatmap requests to ensure fresh data
+    if path.contains("/seatmap") {
+      req.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+      req.addValue("no-cache", forHTTPHeaderField: "Cache-Control")
+      req.addValue("\(Date().timeIntervalSince1970)", forHTTPHeaderField: "X-Cache-Bust")
+    }
+    
     if let b = body {
       req.httpBody = b
-      req.addValue("application/json", forHTTPHeaderField: "Content-Type")
+      req.setValue("application/json", forHTTPHeaderField: "Content-Type")
     }
-    if let key = idempotencyKey { req.addValue(key, forHTTPHeaderField: "Idempotency-Key") }
-    if let token = accessToken { req.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
-    if let org = orgId { req.addValue(org, forHTTPHeaderField: "X-Org-ID") }
-    req.addValue("iOS", forHTTPHeaderField: "X-Client")
-    headers?.forEach { k, v in req.addValue(v, forHTTPHeaderField: k) }
+    if let key = idempotencyKey { req.setValue(key, forHTTPHeaderField: "Idempotency-Key") }
+    if let token = accessToken { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+    if let org = orgId { 
+      req.setValue(org, forHTTPHeaderField: "X-Org-ID")
+      print("[ApiClient] Set X-Org-ID: \(org) for \(method) \(path)")
+    } else {
+      print("[ApiClient] WARNING: No orgId set for \(method) \(path)")
+    }
+    req.setValue("iOS", forHTTPHeaderField: "X-Client")
+    headers?.forEach { k, v in 
+      if k == "X-Org-ID" {
+        // Skip X-Org-ID from headers since we already set it above
+        print("[ApiClient] Skipping duplicate X-Org-ID from headers parameter")
+      } else {
+        req.addValue(v, forHTTPHeaderField: k)
+      }
+    }
 
     let (data, resp) = try await URLSession.shared.data(for: req)
     guard let http = resp as? HTTPURLResponse else { throw ApiError.network("invalid response") }

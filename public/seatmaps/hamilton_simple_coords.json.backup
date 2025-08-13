@@ -1,0 +1,339 @@
+{
+  "style": "simple_coordinates",
+  "venue": "Victoria Palace Theatre",
+  "show": "Hamilton",
+  "viewport": {
+    "width": 63.0,
+    "height": 56.0
+  },
+  "stage": {
+    "x": 31.25,
+    "y": 2.0,
+    "width": 25.0,
+    "height": 3.0
+  },
+  "total_seats": 4013,
+  "seats": [
+    {
+      "id": "CF_A1",
+      "section": "Central Front",
+      "sectionId": "central-front",
+      "x": 11.0,
+      "y": 7.0,
+      "width": 1.2,
+      "height": 1.2,
+      "priceLevelId": "premium",
+      "colorHex": "#FF6B6B"
+    },
+    {
+      "id": "CF_A2",
+      "section": "Central Front",
+      "sectionId": "central-front",
+      "x": 12.5,
+      "y": 7.0,
+      "width": 1.2,
+      "height": 1.2,
+      "priceLevelId": "premium",
+      "colorHex": "#FF6B6B"
+    },
+    {
+      "id": "CF_A3",
+      "section": "Central Front",
+      "sectionId": "central-front",
+      "x": 14.0,
+      "y": 7.0,
+      "width": 1.2,
+      "height": 1.2,
+      "priceLevelId": "premium",
+      "colorHex": "#FF6B6B"
+    },
+    {
+      "id": "CF_A4",
+      "section": "Central Front",
+      "sectionId": "central-front",
+      "x": 15.5,
+      "y": 7.0,
+      "width": 1.2,
+      "height": 1.2,
+      "priceLevelId": "premium",
+      "colorHex": "#FF6B6B"
+    },
+    {
+      "id": "CF_A5",
+      "section": "Central Front",
+      "sectionId": "central-front",
+      "x": 17.0,
+      "y": 7.0,
+      "width": 1.2,
+      "height": 1.2,
+      "priceLevelId": "premium",
+      "colorHex": "#FF6B6B"
+    },
+    {
+      "id": "CF_A6",
+      "section": "Central Front",
+      "sectionId": "central-front",
+      "x": 18.5,
+      "y": 7.0,
+      "width": 1.2,
+      "height": 1.2,
+      "priceLevelId": "premium",
+      "colorHex": "#FF6B6B"
+    },
+    {
+      "id": "CF_A7",
+      "section": "Central Front",
+      "sectionId": "central-front",
+      "x": 20.0,
+      "y": 7.0,
+      "width": 1.2,
+      "height": 1.2,
+      "priceLevelId": "premium",
+      "colorHex": "#FF6B6B"
+    },
+    {
+      "id": "CF_A8",
+      "section": "Central Front",
+      "sectionId": "central-front",
+      "x": 21.5,
+      "y": 7.0,
+      "width": 1.2,
+      "height": 1.2,
+      "priceLevelId": "premium",
+      "colorHex": "#FF6B6B"
+    },
+    {
+      "id": "CF_A9",
+      "section": "Central Front",
+      "sectionId": "central-front",
+      "x": 23.0,
+      "y": 7.0,
+      "width": 1.2,
+      "height": 1.2,
+      "priceLevelId": "premium",
+      "colorHex": "#FF6B6B"
+    },
+    {
+      "id": "CF_A10",
+      "section": "Central Front",
+      "sectionId": "central-front",
+      "x": 24.5,
+      "y": 7.0,
+      "width": 1.2,
+      "height": 1.2,
+      "priceLevelId": "premium",
+      "colorHex": "#FF6B6B"
+    },
+    {
+      "id": "CF_A11",
+      "section": "Central Front",
+      "sectionId": "central-front",
+      "x": 26.0,
+      "y": 7.0,
+      "width": 1.2,
+      "height": 1.2,
+      "priceLevelId": "premium",
+      "colorHex": "#FF6B6B"
+    },
+    {
+      "id": "CF_A12",
+      "section": "Central Front",
+      "sectionId": "central-front",
+      "x": 27.5,
+      "y": 7.0,
+      "width": 1.2,
+      "height": 1.2,
+      "priceLevelId": "premium",
+      "colorHex": "#FF6B6B"
+    },
+    {
+      "id": "CF_A13",
+      "section": "Central Front",
+      "sectionId": "central-front",
+      "x": 29.0,
+      "y": 7.0,
+      "width": 1.2,
+      "height": 1.2,
+      "priceLevelId": "premium",
+      "colorHex": "#FF6B6B"
+    },
+    {
+      "id": "CF_A14",
+      "section": "Central Front",
+      "sectionId": "central-front",
+      "x": 30.5,
+      "y": 7.0,
+      "width": 1.2,
+      "height": 1.2,
+      "priceLevelId": "premium",
+      "colorHex": "#FF6B6B"
+    },
+    {
+      "id": "CF_A15",
+      "section": "Central Front",
+      "sectionId": "central-front",
+      "x": 32.0,
+      "y": 7.0,
+      "width": 1.2,
+      "height": 1.2,
+      "priceLevelId": "premium",
+      "colorHex": "#FF6B6B"
+    },
+    {
+      "id": "CF_A16",
+      "section": "Central Front",
+      "sectionId": "central-front",
+      "x": 33.5,
+      "y": 7.0,
+      "width": 1.2,
+      "height": 1.2,
+      "priceLevelId": "premium",
+      "colorHex": "#FF6B6B"
+    },
+    {
+      "id": "CF_A17",
+      "section": "Central Front",
+      "sectionId": "central-front",
+      "x": 35.0,
+      "y": 7.0,
+      "width": 1.2,
+      "height": 1.2,
+      "priceLevelId": "premium",
+      "colorHex": "#FF6B6B"
+    },
+    {
+      "id": "CF_A18",
+      "section": "Central Front",
+      "sectionId": "central-front",
+      "x": 36.5,
+      "y": 7.0,
+      "width": 1.2,
+      "height": 1.2,
+      "priceLevelId": "premium",
+      "colorHex": "#FF6B6B"
+    },
+    {
+      "id": "CF_A19",
+      "section": "Central Front",
+      "sectionId": "central-front",
+      "x": 38.0,
+      "y": 7.0,
+      "width": 1.2,
+      "height": 1.2,
+      "priceLevelId": "premium",
+      "colorHex": "#FF6B6B"
+    },
+    {
+      "id": "CF_A20",
+      "section": "Central Front",
+      "sectionId": "central-front",
+      "x": 39.5,
+      "y": 7.0,
+      "width": 1.2,
+      "height": 1.2,
+      "priceLevelId": "premium",
+      "colorHex": "#FF6B6B"
+    },
+    {
+      "id": "CF_A21",
+      "section": "Central Front",
+      "sectionId": "central-front",
+      "x": 41.0,
+      "y": 7.0,
+      "width": 1.2,
+      "height": 1.2,
+      "priceLevelId": "premium",
+      "colorHex": "#FF6B6B"
+    },
+    {
+      "id": "CF_A22",
+      "section": "Central Front",
+      "sectionId": "central-front",
+      "x": 42.5,
+      "y": 7.0,
+      "width": 1.2,
+      "height": 1.2,
+      "priceLevelId": "premium",
+      "colorHex": "#FF6B6B"
+    }
+  ],
+  "sections": [
+    {
+      "id": "central-front",
+      "name": "Central Front",
+      "color": "#FF6B6B",
+      "x": 11.0,
+      "y": 7.0,
+      "width": 31.5,
+      "height": 9.0
+    },
+    {
+      "id": "upper-left-box",
+      "name": "Upper Left Box",
+      "color": "#4ECDC4",
+      "x": 1.5,
+      "y": 5.0,
+      "width": 4.5,
+      "height": 11.2
+    },
+    {
+      "id": "upper-right-box",
+      "name": "Upper Right Box",
+      "color": "#45B7D1",
+      "x": 47.5,
+      "y": 5.0,
+      "width": 4.5,
+      "height": 11.2
+    },
+    {
+      "id": "lower-central",
+      "name": "Lower Central",
+      "color": "#96CEB4",
+      "x": 11.0,
+      "y": 22.2,
+      "width": 40.5,
+      "height": 21.0
+    },
+    {
+      "id": "lower-left-box",
+      "name": "Lower Left Box",
+      "color": "#FFEAA7",
+      "x": 0.0,
+      "y": 22.2,
+      "width": 6.0,
+      "height": 22.4
+    },
+    {
+      "id": "lower-right-box",
+      "name": "Lower Right Box",
+      "color": "#DDA0DD",
+      "x": 56.5,
+      "y": 22.2,
+      "width": 6.0,
+      "height": 22.4
+    },
+    {
+      "id": "bottom-left-section",
+      "name": "Bottom Left Section",
+      "color": "#F8BBD9",
+      "x": 15.15,
+      "y": 50.6,
+      "width": 10.5,
+      "height": 4.8
+    },
+    {
+      "id": "bottom-right-section",
+      "name": "Bottom Right Section",
+      "color": "#E17055",
+      "x": 36.85,
+      "y": 50.6,
+      "width": 10.5,
+      "height": 4.8
+    }
+  ],
+  "pricing": {
+    "premium": { "price": 150.00, "name": "Premium", "color": "#FF6B6B" },
+    "standard": { "price": 95.00, "name": "Standard", "color": "#4ECDC4" },
+    "balcony": { "price": 65.00, "name": "Balcony", "color": "#96CEB4" }
+  }
+}

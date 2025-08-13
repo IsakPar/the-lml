@@ -70,7 +70,7 @@ struct LoginView: View {
       do {
         let payload = ["grant_type": "password", "username": username, "password": password]
         let data = try JSONSerialization.data(withJSONObject: payload)
-        let (resp, _) = try await app.api.request(path: "/v1/oauth/token", method: "POST", body: data, headers: ["X-Org-ID": Config.defaultOrgId])
+        let (resp, _) = try await app.api.request(path: "/v1/oauth/token", method: "POST", body: data)
         let obj = try JSONSerialization.jsonObject(with: resp) as? [String: Any]
         if let t = obj?["access_token"] as? String { app.accessToken = t; app.isAuthenticated = true } else { message = "Invalid response" }
       } catch { message = error.localizedDescription }

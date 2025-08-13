@@ -3,13 +3,59 @@ import SwiftUI
 
 final class AppState: ObservableObject {
   @Published var isAuthenticated: Bool = false
-  @Published var accessToken: String? = nil
-  let api = ApiClient(baseURL: Config.apiBaseURL)
+  @Published var accessToken: String? = nil {
+    didSet {
+      // Sync the access token with the ApiClient
+      api.accessToken = accessToken
+      print("[Auth] Updated access token, orgId remains: \(api.orgId ?? "nil")")
+    }
+  }
+  let api = ApiClient(baseURL: Config.apiBaseURL, orgId: Config.defaultOrgId)
   lazy var verifier = VerifierService(api: api)
   let ticketsCache = TicketsCacheService()
+  
+  init() {
+    // Ensure orgId is set from the start
+    api.orgId = Config.defaultOrgId
+    print("[AppState] Initialized with orgId: \(Config.defaultOrgId)")
+  }
 
   func verifierStartRefresh() {
     Task { try? await verifier.refreshJwks() }
+  }
+  
+  @MainActor
+  func authenticateForDevelopment() async {
+    guard accessToken == nil else { return } // Already authenticated
+    
+    do {
+      print("[Auth] Attempting development authentication...")
+      let payload = [
+        "grant_type": "client_credentials",
+        "client_id": "test_client",
+        "client_secret": "test_secret"
+      ]
+      
+      let data = try JSONSerialization.data(withJSONObject: payload)
+      let (responseData, _) = try await api.request(
+        path: "/v1/oauth/token",
+        method: "POST", 
+        body: data
+      )
+      
+      let response = try JSONSerialization.jsonObject(with: responseData) as? [String: Any]
+      
+      if let token = response?["access_token"] as? String {
+        self.accessToken = token
+        self.isAuthenticated = true
+        print("[Auth] Development authentication successful")
+      } else {
+        print("[Auth] Development authentication failed - no token in response")
+      }
+      
+    } catch {
+      print("[Auth] Development authentication error: \(error)")
+    }
   }
 
   func cacheTicketFromToken(orgId: String, token: String) {
@@ -42,7 +88,7 @@ final class AppState: ObservableObject {
     do {
       let body: [String: Any] = ["order_id": orderId, "performance_id": performanceId, "seat_id": seatId]
       let data = try JSONSerialization.data(withJSONObject: body)
-      let (resp, _) = try await api.request(path: "/v1/tickets/issue", method: "POST", body: data, headers: ["X-Org-ID": Config.defaultOrgId])
+      let (resp, _) = try await api.request(path: "/v1/tickets/issue", method: "POST", body: data)
       if let obj = try JSONSerialization.jsonObject(with: resp) as? [String: Any], let token = obj["ticket_token"] as? String {
         cacheTicketFromToken(orgId: Config.defaultOrgId, token: token)
       }

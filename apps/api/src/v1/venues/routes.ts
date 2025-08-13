@@ -77,6 +77,56 @@ export async function registerVenueRoutes(app: FastifyInstance, deps: { mongo: M
       return { seatmapId: row.seatmap_mongo_id, trace_id: req.ctx?.traceId };
     });
   });
+
+  // GET /v1/shows/:id/seat-availability - Real seat states from Postgres
+  app.get('/v1/shows/:id/seat-availability', async (req: any) => {
+    const db = getDatabase();
+    return await db.withTenant(String(req.ctx.orgId || ''), async (c) => {
+      try {
+        // Get the next performance for this show
+        const perfRes = await c.query<any>(
+          `SELECT id FROM venues.performances 
+           WHERE show_id = $1 AND starts_at >= NOW() 
+           ORDER BY starts_at ASC LIMIT 1`,
+          [String(req.params.id)]
+        );
+        
+        if (perfRes.rows.length === 0) {
+          return { data: {}, trace_id: req.ctx?.traceId };
+        }
+        
+        const performanceId = perfRes.rows[0].id;
+        
+        // Check if inventory.seat_state table exists and get all seat states for this performance
+        const seatRes = await c.query<any>(
+          `SELECT ss.seat_id, ss.state 
+           FROM inventory.seat_state ss
+           WHERE ss.performance_id = $1`,
+          [performanceId]
+        );
+
+        // Convert to a map: seat_id -> state
+        const availability: Record<string, string> = {};
+        seatRes.rows.forEach((row: any) => {
+          availability[row.seat_id] = row.state;
+        });
+
+        return { 
+          data: availability, 
+          performance_id: performanceId,
+          trace_id: req.ctx?.traceId 
+        };
+      } catch (error) {
+        console.error('Seat availability error:', error);
+        // Return empty availability if there's a schema issue
+        return { 
+          data: {}, 
+          error: 'seat_state_table_missing',
+          trace_id: req.ctx?.traceId 
+        };
+      }
+    });
+  });
   // GET /v1/seatmaps/:seatmap_id or alias by key (e.g., "hamilton")
   app.get('/v1/seatmaps/:seatmapId', async (req: any, reply) => {
     const db = getDatabase();
@@ -93,8 +143,16 @@ export async function registerVenueRoutes(app: FastifyInstance, deps: { mongo: M
       base = { _id: id };
     }
     const filter = req.ctx?.orgId ? { ...base, orgId: req.ctx.orgId } : base;
+    console.log(`[Seatmap] Looking for seatmap with filter:`, JSON.stringify(filter));
     const doc = await seatmaps.findOne(filter);
     if (!doc) {
+      console.log(`[Seatmap] Seatmap not found with filter: ${JSON.stringify(filter)}`);
+      // Try without orgId filter as fallback for debugging
+      const fallbackDoc = await seatmaps.findOne(base);
+      if (fallbackDoc) {
+        console.log(`[Seatmap] Found seatmap without orgId filter - orgId mismatch issue detected`);
+        console.log(`[Seatmap] Document orgId: ${fallbackDoc.orgId}, Request orgId: ${req.ctx?.orgId}`);
+      }
       return reply.code(404).type('application/problem+json').send(problem(404, 'not_found', 'seatmap not found', 'urn:thankful:venues:seatmap_not_found', req.ctx?.traceId));
     }
     // Augment seats with normalized section key and optional metadata for clients (non-breaking)

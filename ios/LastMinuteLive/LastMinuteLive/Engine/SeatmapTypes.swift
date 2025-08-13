@@ -20,6 +20,8 @@ public struct SeatNode: Codable, Hashable {
   public let colorHex: String?
   public let priceLevelId: String?
   public let attrs: SeatAttributes
+  public let row: String?
+  public let number: String?
 }
 
 public struct SectionNode: Codable, Hashable { public let id: String; public let name: String }
