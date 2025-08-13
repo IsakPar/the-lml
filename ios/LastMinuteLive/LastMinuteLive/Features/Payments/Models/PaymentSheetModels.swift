@@ -3,7 +3,7 @@ import SwiftUI
 
 // MARK: - Payment Result
 
-enum PaymentResult {
+enum PaymentResult: Equatable {
   case success
   case cancelled
   case failed
@@ -52,7 +52,7 @@ struct OrderSummary {
 
 // MARK: - Payment State
 
-enum PaymentState {
+enum PaymentState: Equatable {
   case idle
   case processing
   case completed(PaymentResult)
