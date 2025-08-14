@@ -282,6 +282,7 @@ extension DataFormatters {
            let number = extractNumber(from: seatNode) {
             return "\(row)\(number)"
         }
+        // Fallback to ID if row/number not available
         return seatNode.id
     }
 }

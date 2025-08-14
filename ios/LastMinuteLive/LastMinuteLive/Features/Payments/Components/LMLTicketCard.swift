@@ -197,6 +197,10 @@ struct LMLTicketCard_Previews: PreviewProvider {
                                 totalAmount: 7500,
                                 currency: "GBP",
                                 seatIds: ["8a523482-ddc9-4ee6-99c3", "396c72f1-e153-478c"],
+                                seatNodes: [
+                                    SeatNode(id: "8a523482-ddc9-4ee6-99c3", sectionId: "orchestra", x: 100, y: 200, w: 20, h: 20, colorHex: nil, priceLevelId: "premium", attrs: SeatAttributes(rawValue: 0), row: "A", number: "12"),
+                                    SeatNode(id: "396c72f1-e153-478c", sectionId: "orchestra", x: 120, y: 200, w: 20, h: 20, colorHex: nil, priceLevelId: "premium", attrs: SeatAttributes(rawValue: 0), row: "A", number: "13")
+                                ],
                                 performanceName: "Hamilton",
                                 performanceDate: "September 15, 2025 at 7:30 PM",
                                 venueName: "Victoria Palace Theatre",
@@ -215,6 +219,12 @@ struct LMLTicketCard_Previews: PreviewProvider {
                                 totalAmount: 15000,
                                 currency: "GBP",
                                 seatIds: ["uuid1", "uuid2", "uuid3", "uuid4"],
+                                seatNodes: [
+                                    SeatNode(id: "uuid1", sectionId: "royal_circle", x: 50, y: 100, w: 18, h: 18, colorHex: nil, priceLevelId: "standard", attrs: SeatAttributes(rawValue: 0), row: "C", number: "5"),
+                                    SeatNode(id: "uuid2", sectionId: "royal_circle", x: 68, y: 100, w: 18, h: 18, colorHex: nil, priceLevelId: "standard", attrs: SeatAttributes(rawValue: 0), row: "C", number: "6"),
+                                    SeatNode(id: "uuid3", sectionId: "royal_circle", x: 86, y: 100, w: 18, h: 18, colorHex: nil, priceLevelId: "standard", attrs: SeatAttributes(rawValue: 0), row: "C", number: "7"),
+                                    SeatNode(id: "uuid4", sectionId: "royal_circle", x: 104, y: 100, w: 18, h: 18, colorHex: nil, priceLevelId: "standard", attrs: SeatAttributes(rawValue: 0), row: "C", number: "8")
+                                ],
                                 performanceName: "The Lion King",
                                 performanceDate: "December 25, 2025 at 2:30 PM",
                                 venueName: "Lyceum Theatre",

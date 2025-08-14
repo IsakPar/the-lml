@@ -8,6 +8,7 @@ struct PaymentSuccessData {
     let totalAmount: Int
     let currency: String
     let seatIds: [String]
+    let seatNodes: [SeatNode]? // NEW: Actual seat node data for proper formatting
     let performanceName: String
     let performanceDate: String
     let venueName: String
@@ -22,10 +23,9 @@ struct PaymentSuccessScreen: View {
     let successData: PaymentSuccessData
     let onDismiss: () -> Void
     let onSeeMyTickets: () -> Void
-    let seatNodes: [SeatNode]? = nil // TODO: Pass from parent if available
     
     private var cleanTicketData: CleanTicketData {
-        CleanTicketData(from: successData, seatNodes: seatNodes)
+        CleanTicketData(from: successData, seatNodes: successData.seatNodes)
     }
     
     var body: some View {
@@ -42,8 +42,11 @@ struct PaymentSuccessScreen: View {
                         eventDate: extractCleanDate(from: successData.performanceDate)
                     )
                     
-                    // LML Glassmorphism Ticket Card
-                    LMLTicketCard(ticketData: cleanTicketData)
+                    // Swipeable Ticket Cards (shows individual tickets for multiple seats)
+                    SwipeableTickets(
+                        cleanTicketData: cleanTicketData,
+                        seatNodes: successData.seatNodes
+                    )
                     
                     // Native Action Buttons
                     NativeActionButtons(
@@ -126,6 +129,7 @@ struct PaymentSuccessScreen_Previews: PreviewProvider {
                 totalAmount: 7500,  // £75.00
                 currency: "GBP",
                 seatIds: ["8a523482-ddc9-4ee6-99c3", "396c72f1-e153-478c"],
+                seatNodes: nil, // TODO: Add sample SeatNode data for preview
                 performanceName: "Hamilton",
                 performanceDate: "September 15, 2025 at 7:30 PM",
                 venueName: "Victoria Palace Theatre",

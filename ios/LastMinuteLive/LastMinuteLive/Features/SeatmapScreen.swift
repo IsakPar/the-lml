@@ -47,6 +47,7 @@ struct SeatmapScreen: View {
   @State private var showSuccessScreen = false
   @State private var successData: PaymentSuccessData?
   @State private var lastOrderResponse: CreateOrderResponse?
+  @State private var selectedSeatNodes: [SeatNode] = []
   
   var body: some View {
     ZStack {
@@ -586,11 +587,15 @@ struct SeatmapScreen: View {
       
       // Prepare success data
       if let orderResponse = lastOrderResponse {
+        // Get the actual seat node data for proper formatting
+        let currentSelectedSeatNodes = model?.seats.filter { selectedSeats.contains($0.id) } ?? []
+        
         successData = PaymentSuccessData(
           orderId: orderResponse.order_id,
           totalAmount: orderResponse.total_amount,
           currency: orderResponse.currency,
           seatIds: Array(selectedSeats),
+          seatNodes: currentSelectedSeatNodes, // Pass actual seat node data
           performanceName: show.title,
           performanceDate: formatPerformanceDate(show.nextPerformance ?? ""),
           venueName: show.venue,
