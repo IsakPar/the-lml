@@ -4,6 +4,7 @@
  */
 import fs from 'fs/promises';
 import path from 'path';
+import { randomUUID } from 'crypto';
 import { MongoClient } from 'mongodb';
 import { getDatabase } from '../../packages/database/src/index.js';
 
@@ -34,7 +35,7 @@ async function main() {
     // First enhance seats with basic fields and optimize layout
     json.seats = json.seats.map((seat: any, index: number) => ({
       ...seat,
-      id: seat.id || `seat_${index + 1}`,
+      id: seat.id || randomUUID(), // Generate proper UUID for each seat
       width: seat.width || 1.2,
       height: seat.height || 1.2,
       priceLevelId: seat.priceLevelId || 'standard',
@@ -142,12 +143,24 @@ async function main() {
       [venueId, 'Hamilton', '/public/posters/hamilton.jpg']
     );
     const showId = show.rows[0].id;
-    const perf = await c.query<{ id: string }>(
-      `INSERT INTO venues.performances(show_id, starts_at) VALUES ($1,$2)
-       RETURNING id`,
-      [showId, '2025-09-15T19:30:00Z']
+    // Get or create performance (reuse existing if available)
+    let perf = await c.query<{ id: string }>(
+      `SELECT id FROM venues.performances WHERE show_id = $1 ORDER BY starts_at ASC LIMIT 1`,
+      [showId]
     );
-    const performanceId = perf.rows[0].id;
+    
+    let performanceId: string;
+    if (perf.rows.length > 0) {
+      performanceId = perf.rows[0].id;
+      console.log(`🔄 Reusing existing performance ID: ${performanceId}`);
+    } else {
+      const newPerf = await c.query<{ id: string }>(
+        `INSERT INTO venues.performances(show_id, starts_at) VALUES ($1,$2) RETURNING id`,
+        [showId, '2025-09-15T19:30:00Z']
+      );
+      performanceId = newPerf.rows[0].id;
+      console.log(`🎭 Created new performance ID: ${performanceId}`);
+    }
     // Price tiers for DENSE seatmap layout (matches JSON pricing tiers)
     await c.query(
       `INSERT INTO venues.price_tiers(show_id, code, name, amount_minor, color)
@@ -170,7 +183,17 @@ async function main() {
     // Seed seat inventory from the simple coordinate seatmap
     console.log(`Seeding ${json.seats?.length || 0} seats to inventory (simple coordinate seatmap)...`);
     if (json.seats && Array.isArray(json.seats)) {
-      // Clear existing seats for this performance to avoid duplicates
+      // Clear existing seats for this performance to avoid duplicates  
+      console.log(`🧹 Clearing existing seat data for performance ${performanceId}...`);
+      
+      // Add order_id column if it doesn't exist
+      console.log(`🔧 Adding order_id column to seat_state table if missing...`);
+      await c.query(`ALTER TABLE inventory.seat_state ADD COLUMN IF NOT EXISTS order_id UUID`);
+      
+      await c.query(
+        `DELETE FROM inventory.seat_state WHERE performance_id = $1`,
+        [performanceId]
+      );
       await c.query(
         `DELETE FROM inventory.seat_catalog WHERE performance_id = $1`,
         [performanceId]
@@ -181,7 +204,7 @@ async function main() {
       for (let i = 0; i < json.seats.length; i += chunkSize) {
         const chunk = json.seats.slice(i, i + chunkSize);
         const values = chunk.map((seat: any) => {
-          const seatId = seat.id || `seat_${i + 1}`;
+          const seatId = seat.id; // Now always a UUID from above
           const row = seat.row || 'A';
           const number = seat.number || '1';
           const priceTier = seat.priceLevelId || 'standard';
@@ -195,16 +218,24 @@ async function main() {
         );
       }
       
-      // Initialize all seats as available in seat_state
-      await c.query(
-        `INSERT INTO inventory.seat_state(performance_id, seat_id, state, updated_at)
-         SELECT performance_id, seat_id, 'available', NOW()
+      // Initialize all seats as available in seat_state  
+      const stateResult = await c.query(
+        `INSERT INTO inventory.seat_state(performance_id, seat_id, state, order_id, updated_at)
+         SELECT performance_id, seat_id, 'available', NULL, NOW()
          FROM inventory.seat_catalog 
          WHERE performance_id = $1
          ON CONFLICT (tenant_id, performance_id, seat_id) 
-         DO UPDATE SET state = 'available', updated_at = NOW()`,
+         DO UPDATE SET state = 'available', order_id = NULL, updated_at = NOW()`,
         [performanceId]
       );
+      console.log(`💺 Initialized ${stateResult.rowCount || 0} seat states as available`);
+      
+      // Verify seat_state was populated
+      const verifyResult = await c.query(
+        `SELECT COUNT(*) as count FROM inventory.seat_state WHERE performance_id = $1`,
+        [performanceId]
+      );
+      console.log(`✅ Total seat_state records for performance ${performanceId}: ${verifyResult.rows[0]?.count || 0}`);
     }
   });
 

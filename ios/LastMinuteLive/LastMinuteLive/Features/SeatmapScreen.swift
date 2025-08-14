@@ -1,4 +1,23 @@
 import SwiftUI
+import Stripe
+import StripePaymentSheet
+import PassKit
+
+// MARK: - Order Models
+
+struct CreateOrderRequest: Codable {
+  let performance_id: String
+  let seat_ids: [String]
+  let currency: String
+  let total_minor: Int
+}
+
+struct CreateOrderResponse: Codable {
+  let order_id: String
+  let client_secret: String
+  let total_amount: Int
+  let currency: String
+}
 
 private struct Tier { 
   let code: String
@@ -21,6 +40,9 @@ struct SeatmapScreen: View {
   @State private var seatHoldService: SeatHoldService? = nil
   @State private var performanceId: String? = nil
   @State private var showCheckout = false
+  @State private var paymentSheet: PaymentSheet?
+  @State private var paymentResult: PaymentSheetResult?
+  @State private var isCreatingOrder = false
   
   var body: some View {
     ZStack {
@@ -137,8 +159,8 @@ struct SeatmapScreen: View {
         selectedSeats: selectedSeatNodes,
         pricePerSeat: pricePerSeat,
         onCheckout: {
-          print("Checkout with \(selectedSeats.count) seats")
-          showCheckout = true
+          print("[ShoppingBasket] 🛒 Checkout button pressed with \(selectedSeats.count) seats")
+          createOrderAndPresentPaymentSheet()
         },
         onRemoveSeat: { seatId in
           withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
@@ -149,18 +171,12 @@ struct SeatmapScreen: View {
       .padding(.bottom, 0)
     }
     .navigationBarHidden(true)
-    .sheet(isPresented: $showCheckout) {
-      if !selectedSeats.isEmpty {
-        let selectedSeatNodes = model?.seats.filter { selectedSeats.contains($0.id) } ?? []
-        let totalAmount = selectedSeatNodes.count * (tiers.first?.amountMinor ?? 8500)
-        
-        CheckoutView(
-          performanceId: performanceId ?? "",
-          selectedSeats: Array(selectedSeats)
-        )
-        .environmentObject(app)
-      }
-    }
+    .paymentSheet(isPresented: $showCheckout, 
+                  paymentSheet: paymentSheet ?? PaymentSheet(paymentIntentClientSecret: "", configuration: PaymentSheet.Configuration()),
+                  onCompletion: { result in
+      paymentResult = result
+      handlePaymentResult(result)
+    })
     .onAppear { 
       seatHoldService = SeatHoldService(apiClient: app.api)
       load() 
@@ -260,7 +276,7 @@ struct SeatmapScreen: View {
     
     if selectedSeats.contains(seatId) {
       // User is deselecting - release hold and remove from selection
-      await MainActor.run {
+      _ = await MainActor.run {
         withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
           selectedSeats.remove(seatId)
         }
@@ -439,6 +455,112 @@ struct SeatmapScreen: View {
       default:
         return Color(.sRGB, red: 0.6, green: 0.6, blue: 0.6, opacity: 1.0)
       }
+    }
+  }
+  
+  // MARK: - Direct PaymentSheet Integration
+  
+  private func createOrderAndPresentPaymentSheet() {
+    print("[Checkout] 🚀 Starting checkout process...")
+    print("[Checkout] Selected seats: \(Array(selectedSeats))")
+    print("[Checkout] Performance ID: \(performanceId ?? "nil")")
+    
+    guard !selectedSeats.isEmpty, let performanceId = performanceId else {
+      print("[Checkout] ❌ ERROR: No seats selected or performance ID missing")
+      return
+    }
+    
+    isCreatingOrder = true
+    print("[Checkout] 📝 Creating order for \(selectedSeats.count) seats...")
+    
+    Task { @MainActor in
+      do {
+        // Create order request
+        let totalAmount = selectedSeats.count * (tiers.first?.amountMinor ?? 2500)
+        print("[Checkout] 💰 Total amount: \(totalAmount) (£\(Double(totalAmount)/100))")
+        
+        let requestBody = CreateOrderRequest(
+          performance_id: performanceId,
+          seat_ids: Array(selectedSeats),
+          currency: "GBP", 
+          total_minor: totalAmount
+        )
+        
+        print("[Checkout] 📤 Sending order request to API...")
+        
+        // Create order via API
+        let bodyData = try JSONEncoder().encode(requestBody)
+        let (responseData, _) = try await app.api.request(
+          path: "/v1/orders",
+          method: "POST",
+          body: bodyData,
+          headers: ["Idempotency-Key": "order_\(UUID().uuidString)"]
+        )
+        
+        print("[Checkout] ✅ Order API response received")
+        
+        let orderResponse = try JSONDecoder().decode(CreateOrderResponse.self, from: responseData)
+        print("[Checkout] 🎯 Order \(orderResponse.order_id) created successfully")
+        
+        // Configure Stripe API
+        print("[Checkout] 🔧 Configuring Stripe API...")
+        StripeAPI.defaultPublishableKey = Config.stripePublishableKey
+        
+        // Create PaymentSheet configuration
+        print("[Checkout] ⚙️ Creating PaymentSheet configuration...")
+        var configuration = PaymentSheet.Configuration()
+        configuration.merchantDisplayName = "LastMinuteLive"
+        configuration.allowsDelayedPaymentMethods = false
+        
+        // Add Apple Pay if available
+        if PKPaymentAuthorizationViewController.canMakePayments() {
+          print("[Checkout] 🍎 Apple Pay is available, adding to configuration")
+          configuration.applePay = .init(
+            merchantId: Config.merchantIdentifier,
+            merchantCountryCode: Config.countryCode
+          )
+        } else {
+          print("[Checkout] ⚠️ Apple Pay not available")
+        }
+        
+        // Create the official PaymentSheet
+        print("[Checkout] 💳 Creating PaymentSheet with client secret: \(orderResponse.client_secret.prefix(20))...")
+        paymentSheet = PaymentSheet(
+          paymentIntentClientSecret: orderResponse.client_secret,
+          configuration: configuration
+        )
+        
+        // Present PaymentSheet
+        print("[Checkout] 🎬 Setting showCheckout = true to present PaymentSheet")
+        showCheckout = true
+        print("[Checkout] ✨ PaymentSheet should now be presented!")
+        
+      } catch {
+        print("[Checkout] ❌ ERROR: Order creation failed: \(error)")
+        if let apiError = error as? ApiError {
+          print("[Checkout] API Error details: \(apiError)")
+        }
+      }
+      
+      print("[Checkout] 🏁 Finished checkout process, isCreatingOrder = false")
+      isCreatingOrder = false
+    }
+  }
+  
+  private func handlePaymentResult(_ result: PaymentSheetResult) {
+    switch result {
+    case .completed:
+      print("[PaymentSheet] Payment completed successfully!")
+      // Clear selected seats and maybe show success message
+      selectedSeats.removeAll()
+      
+    case .canceled:
+      print("[PaymentSheet] Payment was canceled")
+      // Keep seats selected, user might try again
+      
+    case .failed(let error):
+      print("[PaymentSheet] Payment failed: \(error)")
+      // Show error message to user
     }
   }
 }

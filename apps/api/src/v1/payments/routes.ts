@@ -190,9 +190,9 @@ export async function registerPaymentsRoutes(app: FastifyInstance) {
 
           // **CRITICAL: Mark seats as SOLD so they can't be purchased again**
           const seatUpdateResult = await client.query(
-            `UPDATE event_seats 
-             SET status = 'SOLD', version = version + 1 
-             WHERE order_id = $1 AND status = 'RESERVED'`,
+            `UPDATE inventory.seat_state 
+             SET state = 'sold', updated_at = NOW() 
+             WHERE order_id = $1 AND state = 'reserved'`,
             [orderId]
           );
 
@@ -230,15 +230,15 @@ export async function registerPaymentsRoutes(app: FastifyInstance) {
             
             // Update order status to failed
             await client.query(
-              'UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2',
+              'UPDATE orders.orders SET status = $1, updated_at = NOW() WHERE id = $2',
               ['failed', orderId]
             );
 
             // Release reserved seats back to available
             await client.query(
-              `UPDATE event_seats 
-               SET status = 'AVAILABLE', order_id = NULL, version = version + 1 
-               WHERE order_id = $1 AND status = 'RESERVED'`,
+              `UPDATE inventory.seat_state 
+               SET state = 'available', order_id = NULL, updated_at = NOW() 
+               WHERE order_id = $1 AND state = 'reserved'`,
               [orderId]
             );
 

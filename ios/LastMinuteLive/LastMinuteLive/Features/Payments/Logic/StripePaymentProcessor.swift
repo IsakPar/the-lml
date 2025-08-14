@@ -1,8 +1,9 @@
 import Foundation
 import Stripe
+import StripePaymentSheet
 import PassKit
 
-// MARK: - Simplified Stripe Payment Processor
+// MARK: - Real Stripe Payment Processor with Official PaymentSheet
 
 @MainActor
 class StripePaymentProcessor: ObservableObject {
@@ -13,24 +14,41 @@ class StripePaymentProcessor: ObservableObject {
   @Published var errorMessage: String?
   
   private var clientSecret: String?
+  private var paymentSheet: PaymentSheet?
   private var isConfigured = false
   
   // MARK: - Configuration
   
   func configure(with clientSecret: String) {
-    // Configure Stripe API
-    STPAPIClient.shared.publishableKey = Config.stripePublishableKey
-    
     self.clientSecret = clientSecret
+    
+    // Configure Stripe API
+    StripeAPI.defaultPublishableKey = Config.stripePublishableKey
+    
+    // Create PaymentSheet configuration
+    var configuration = PaymentSheet.Configuration()
+    configuration.merchantDisplayName = "LastMinuteLive"
+    configuration.allowsDelayedPaymentMethods = false
+    
+    // Add Apple Pay configuration if available
+    if PKPaymentAuthorizationViewController.canMakePayments() {
+      configuration.applePay = .init(
+        merchantId: Config.merchantIdentifier,
+        merchantCountryCode: Config.countryCode
+      )
+    }
+    
+    // Create the official Stripe PaymentSheet
+    self.paymentSheet = PaymentSheet(paymentIntentClientSecret: clientSecret, configuration: configuration)
     isConfigured = true
   }
   
-  // MARK: - Present Payment Options
+  // MARK: - Present Official Stripe PaymentSheet
   
   func presentPaymentOptions() async -> PaymentResult {
-    guard let clientSecret = clientSecret, isConfigured else {
+    guard let paymentSheet = paymentSheet, isConfigured else {
       await MainActor.run {
-        errorMessage = "Payment not configured"
+        errorMessage = "PaymentSheet not configured"
         paymentState = .completed(.failed)
       }
       return .failed
@@ -41,59 +59,40 @@ class StripePaymentProcessor: ObservableObject {
       errorMessage = nil
     }
     
-    // Try to use native PaymentSheet first, fallback to manual implementation
-    if let result = await presentNativePaymentSheet(clientSecret: clientSecret) {
-      return result
-    } else {
-      return await presentManualPayment(clientSecret: clientSecret)
-    }
-  }
-  
-  // MARK: - Native PaymentSheet (if available)
-  
-  private func presentNativePaymentSheet(clientSecret: String) async -> PaymentResult? {
-    // This will only work if StripePaymentSheet is available
-    // We'll implement a check for this
-    return nil // Fallback to manual for now
-  }
-  
-  // MARK: - Manual Payment Implementation
-  
-  private func presentManualPayment(clientSecret: String) async -> PaymentResult {
     return await withCheckedContinuation { continuation in
-      // Create a simple payment intent confirmation
-      let paymentIntentParams = STPPaymentIntentParams(clientSecret: clientSecret)
-      
-      // For now, we'll create a basic card payment setup
-      // This can be expanded to show a native card input form
-      
-      // Get the authentication context
-      guard let authContext = getAuthenticationContext() else {
+      // Find the presenting view controller
+      guard let presentingViewController = getRootViewController() else {
+        Task { @MainActor in
+          self.errorMessage = "Cannot find presenting view controller"
+          self.paymentState = .completed(.failed)
+        }
         continuation.resume(returning: .failed)
         return
       }
       
-      // Use STPPaymentHandler to confirm payment
-      let paymentHandler = STPPaymentHandler.shared()
-      
-      paymentHandler.confirmPayment(paymentIntentParams, with: authContext) { status, paymentIntent, error in
-        DispatchQueue.main.async {
-          switch status {
-          case .succeeded:
+      // Present the official Stripe PaymentSheet
+      paymentSheet.present(from: presentingViewController) { [weak self] paymentResult in
+        Task { @MainActor in
+          guard let self = self else { return }
+          
+          let result: PaymentResult
+          
+          switch paymentResult {
+          case .completed:
+            result = .success
             self.paymentState = .completed(.success)
-            continuation.resume(returning: .success)
+            
           case .canceled:
+            result = .cancelled
             self.paymentState = .completed(.cancelled)
-            continuation.resume(returning: .cancelled)
-          case .failed:
-            self.errorMessage = error?.localizedDescription ?? "Payment failed"
+            
+          case .failed(let error):
+            result = .failed
+            self.errorMessage = error.localizedDescription
             self.paymentState = .completed(.failed)
-            continuation.resume(returning: .failed)
-          @unknown default:
-            self.errorMessage = "Unknown payment status"
-            self.paymentState = .completed(.failed)
-            continuation.resume(returning: .failed)
           }
+          
+          continuation.resume(returning: result)
         }
       }
     }
@@ -104,19 +103,12 @@ class StripePaymentProcessor: ObservableObject {
   func resetState() {
     paymentState = .idle
     errorMessage = nil
+    paymentSheet = nil
     clientSecret = nil
     isConfigured = false
   }
   
   // MARK: - Helper Methods
-  
-  private func getAuthenticationContext() -> STPAuthenticationContext? {
-    guard let rootViewController = getRootViewController() else {
-      return nil
-    }
-    
-    return AuthenticationContextWrapper(viewController: rootViewController)
-  }
   
   private func getRootViewController() -> UIViewController? {
     return UIApplication.shared.connectedScenes
@@ -124,19 +116,5 @@ class StripePaymentProcessor: ObservableObject {
       .flatMap { $0.windows }
       .first { $0.isKeyWindow }?
       .rootViewController
-  }
-}
-
-// MARK: - Authentication Context Wrapper
-
-private class AuthenticationContextWrapper: NSObject, STPAuthenticationContext {
-  private weak var viewController: UIViewController?
-  
-  init(viewController: UIViewController) {
-    self.viewController = viewController
-  }
-  
-  func authenticationPresentingViewController() -> UIViewController {
-    return viewController ?? UIViewController()
   }
 }

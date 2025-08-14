@@ -86,15 +86,16 @@ export async function registerOrdersRoutes(app: FastifyInstance) {
     let orderId: string = '';
     let clientSecret: string = '';
     
+    // Calculate total amount (moved outside callback for scope)
+    const pricePerSeat = 2500; // £25.00 in pence  
+    const totalMinor = seat_ids.length * pricePerSeat;
+    
     try {
       await db.withTenant(tenant, async (client) => {
         // Start transaction
         await client.query('BEGIN');
         
         try {
-          // Calculate total amount (using simple pricing for now - $25 per seat)
-          const pricePerSeat = 2500; // £25.00 in pence  
-          const totalMinor = seat_ids.length * pricePerSeat;
 
           // Create order (using correct schema and column names)
           const orderResult = await client.query<{ id: string }>(
@@ -103,12 +104,11 @@ export async function registerOrdersRoutes(app: FastifyInstance) {
           );
           orderId = orderResult.rows[0].id;
 
-          // Reserve seats in event_seats table (this tracks seat ownership per order)
+          // Reserve seats in inventory.seat_state table (this tracks seat ownership per order)
           for (const seatId of seat_ids) {
             const updateResult = await client.query(
-              `UPDATE event_seats SET status = 'RESERVED', order_id = $1, version = version + 1 
-               WHERE seat_id = $2 AND status = 'AVAILABLE' AND event_id = 
-               (SELECT id FROM events WHERE id = (SELECT event_id FROM venues.performances WHERE id = $3))`,
+              `UPDATE inventory.seat_state SET state = 'reserved', order_id = $1, updated_at = NOW()
+               WHERE seat_id = $2 AND state = 'available' AND performance_id = $3`,
               [orderId, seatId, performance_id]
             );
             
@@ -153,7 +153,7 @@ export async function registerOrdersRoutes(app: FastifyInstance) {
         client_secret: clientSecret,
         status: 'pending', 
         currency, 
-        total_minor: seat_ids.length * 2500,
+        total_amount: totalMinor,  // Match iOS expectations
         performance_id,
         seat_count: seat_ids.length,
         trace_id: req.ctx?.traceId 
