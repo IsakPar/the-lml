@@ -2,6 +2,7 @@ import SwiftUI
 import Stripe
 import StripePaymentSheet
 import PassKit
+import MapKit
 
 // MARK: - Order Models
 
@@ -43,6 +44,9 @@ struct SeatmapScreen: View {
   @State private var paymentSheet: PaymentSheet?
   @State private var paymentResult: PaymentSheetResult?
   @State private var isCreatingOrder = false
+  @State private var showSuccessScreen = false
+  @State private var successData: PaymentSuccessData?
+  @State private var lastOrderResponse: CreateOrderResponse?
   
   var body: some View {
     ZStack {
@@ -177,6 +181,23 @@ struct SeatmapScreen: View {
       paymentResult = result
       handlePaymentResult(result)
     })
+    .sheet(isPresented: $showSuccessScreen) {
+      if let successData = successData {
+        PaymentSuccessScreen(
+          successData: successData,
+          onDismiss: {
+            showSuccessScreen = false
+            // Navigate back to shows or stay on seatmap
+          },
+          onSeeMyTickets: {
+            showSuccessScreen = false
+            // TODO: Navigate to tickets tab in main app
+            print("[Success] See My Tickets tapped for order: \(successData.orderId)")
+            // This would typically trigger a navigation to the tickets tab
+          }
+        )
+      }
+    }
     .onAppear { 
       seatHoldService = SeatHoldService(apiClient: app.api)
       load() 
@@ -502,6 +523,9 @@ struct SeatmapScreen: View {
         let orderResponse = try JSONDecoder().decode(CreateOrderResponse.self, from: responseData)
         print("[Checkout] 🎯 Order \(orderResponse.order_id) created successfully")
         
+        // Store order response for success screen
+        lastOrderResponse = orderResponse
+        
         // Configure Stripe API
         print("[Checkout] 🔧 Configuring Stripe API...")
         StripeAPI.defaultPublishableKey = Config.stripePublishableKey
@@ -511,6 +535,14 @@ struct SeatmapScreen: View {
         var configuration = PaymentSheet.Configuration()
         configuration.merchantDisplayName = "LastMinuteLive"
         configuration.allowsDelayedPaymentMethods = false
+        
+        // Configure email collection for ticket confirmation
+        // NOTE: Billing details collection might not be available in this Stripe SDK version
+        print("[Checkout] 📧 Email collection will use Stripe's default behavior...")
+        // TODO: Upgrade Stripe SDK version to enable custom billing details collection
+        // var billingConfig = PaymentSheet.BillingDetailsCollectionConfiguration()
+        // billingConfig.email = .always
+        // configuration.billingDetailsCollectionConfiguration = billingConfig
         
         // Add Apple Pay if available
         if PKPaymentAuthorizationViewController.canMakePayments() {
@@ -551,8 +583,29 @@ struct SeatmapScreen: View {
     switch result {
     case .completed:
       print("[PaymentSheet] Payment completed successfully!")
-      // Clear selected seats and maybe show success message
-      selectedSeats.removeAll()
+      
+      // Prepare success data
+      if let orderResponse = lastOrderResponse {
+        successData = PaymentSuccessData(
+          orderId: orderResponse.order_id,
+          totalAmount: orderResponse.total_amount,
+          currency: orderResponse.currency,
+          seatIds: Array(selectedSeats),
+          performanceName: show.title,
+          performanceDate: formatPerformanceDate(show.nextPerformance ?? ""),
+          venueName: show.venue,
+          venueCoordinates: getVenueCoordinates(for: show.venue),
+          customerEmail: extractEmailFromPaymentSheet(),
+          paymentMethod: "Card", // Default for now - could be enhanced
+          purchaseDate: formatCurrentDateTime()
+        )
+        
+        // Clear selected seats
+        selectedSeats.removeAll()
+        
+        // Show success screen
+        showSuccessScreen = true
+      }
       
     case .canceled:
       print("[PaymentSheet] Payment was canceled")
@@ -561,7 +614,51 @@ struct SeatmapScreen: View {
     case .failed(let error):
       print("[PaymentSheet] Payment failed: \(error)")
       // Show error message to user
+      // TODO: Show error alert to user
     }
+  }
+  
+  // Helper function to format performance date
+  private func formatPerformanceDate(_ isoDateString: String) -> String {
+    let formatter = ISO8601DateFormatter()
+    if let date = formatter.date(from: isoDateString) {
+      let displayFormatter = DateFormatter()
+      displayFormatter.dateStyle = .full
+      displayFormatter.timeStyle = .short
+      return displayFormatter.string(from: date)
+    }
+    return isoDateString
+  }
+  
+  // Placeholder for extracting email from PaymentSheet
+  // This is a limitation - Stripe doesn't expose the entered email directly
+  private func extractEmailFromPaymentSheet() -> String? {
+    // For now, return nil - in a real app, you might store this separately
+    // or pass it from a user profile
+    return nil
+  }
+  
+  // Get venue coordinates for Apple Maps integration
+  private func getVenueCoordinates(for venueName: String) -> CLLocationCoordinate2D? {
+    switch venueName.lowercased() {
+    case "victoria palace theatre":
+      return CLLocationCoordinate2D(latitude: 51.4942, longitude: -0.1358)
+    case "lyceum theatre":
+      return CLLocationCoordinate2D(latitude: 51.5115, longitude: -0.1203)
+    case "palace theatre":
+      return CLLocationCoordinate2D(latitude: 51.5135, longitude: -0.1286)
+    default:
+      // Default to London center if venue not found
+      return CLLocationCoordinate2D(latitude: 51.5074, longitude: -0.1278)
+    }
+  }
+  
+  // Format current date and time for purchase timestamp
+  private func formatCurrentDateTime() -> String {
+    let formatter = DateFormatter()
+    formatter.dateStyle = .medium
+    formatter.timeStyle = .short
+    return formatter.string(from: Date())
   }
 }
 
