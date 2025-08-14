@@ -184,13 +184,7 @@ export async function registerPaymentsRoutes(app: FastifyInstance) {
 
           // Update order status to confirmed
           await client.query(
-            'UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2',
-            ['confirmed', orderId]
-          );
-
-          // Update order lines to confirmed
-          await client.query(
-            'UPDATE order_lines SET status = $1 WHERE order_id = $2',
+            'UPDATE orders.orders SET status = $1, updated_at = NOW() WHERE id = $2',
             ['confirmed', orderId]
           );
 

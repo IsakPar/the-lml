@@ -96,22 +96,14 @@ export async function registerOrdersRoutes(app: FastifyInstance) {
           const pricePerSeat = 2500; // £25.00 in pence  
           const totalMinor = seat_ids.length * pricePerSeat;
 
-          // Create order
+          // Create order (using correct schema and column names)
           const orderResult = await client.query<{ id: string }>(
-            'INSERT INTO orders (status, total_amount, currency, created_at, updated_at) VALUES ($1, $2, $3, NOW(), NOW()) RETURNING id',
+            'INSERT INTO orders.orders (status, total_minor, currency) VALUES ($1, $2, $3) RETURNING id',
             ['pending', totalMinor, currency]
           );
           orderId = orderResult.rows[0].id;
 
-          // Create order lines for each seat
-          for (const seatId of seat_ids) {
-            await client.query(
-              'INSERT INTO order_lines (order_id, seat_id, price, status) VALUES ($1, $2, $3, $4)',
-              [orderId, seatId, pricePerSeat, 'pending']
-            );
-          }
-
-          // Reserve seats in event_seats table
+          // Reserve seats in event_seats table (this tracks seat ownership per order)
           for (const seatId of seat_ids) {
             const updateResult = await client.query(
               `UPDATE event_seats SET status = 'RESERVED', order_id = $1, version = version + 1 
