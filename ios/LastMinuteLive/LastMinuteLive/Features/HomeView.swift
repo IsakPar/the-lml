@@ -82,7 +82,7 @@ struct HomeView: View {
     .sheet(item: $navigationCoordinator.showsPresentedSheet) { sheet in
       switch sheet {
       case .seatmap(let show):
-        SeatmapScreen(show: show, navigationCoordinator: navigationCoordinator)
+        SeatmapScreen(show: show, navigationCoordinator: navigationCoordinator, apiClient: app.api)
           .environmentObject(app)
       case .login:
         LoginView()
