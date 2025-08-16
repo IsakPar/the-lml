@@ -34,12 +34,15 @@ final class AppState: ObservableObject {
     
     print("[AppState] Initialized with orgId: \(Config.defaultOrgId)")
     
-    // Observe authentication state changes
-    setupAuthenticationObservers()
+    // Setup observers on main thread
+    Task { @MainActor in
+      setupAuthenticationObservers()
+    }
   }
   
   // MARK: - Authentication State Synchronization
   
+  @MainActor
   private func setupAuthenticationObservers() {
     // Sync authentication state between new and legacy systems
     authenticationManager.$authenticationState
@@ -50,6 +53,7 @@ final class AppState: ObservableObject {
       .store(in: &cancellables)
   }
   
+  @MainActor
   private func syncAuthenticationState(_ state: AuthenticationManager.AuthenticationState) {
     switch state {
     case .authenticated(let user):

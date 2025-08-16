@@ -5,7 +5,6 @@ import Combine
 
 /// Central authentication manager following DDD principles
 /// Manages authentication state, session persistence, and user data
-@MainActor
 final class AuthenticationManager: ObservableObject {
     
     // MARK: - Published State
@@ -73,6 +72,7 @@ final class AuthenticationManager: ObservableObject {
     // MARK: - Session Management
     
     /// Restore authentication session from keychain
+    @MainActor
     func restoreSession() async {
         print("[Auth] 🔄 Attempting to restore session...")
         
@@ -103,6 +103,7 @@ final class AuthenticationManager: ObservableObject {
     }
     
     /// Clear current session and logout
+    @MainActor
     func logout() async {
         print("[Auth] 👋 Logging out user...")
         
@@ -118,6 +119,7 @@ final class AuthenticationManager: ObservableObject {
     // MARK: - Email Authentication
     
     /// Authenticate with email and password
+    @MainActor
     func authenticateWithEmail(_ email: String, password: String) async -> Bool {
         print("[Auth] 📧 Attempting email authentication for: \(email)")
         
@@ -154,6 +156,7 @@ final class AuthenticationManager: ObservableObject {
     // MARK: - Apple Sign In
     
     /// Handle Apple Sign In result
+    @MainActor
     func handleAppleSignIn(result: Result<ASAuthorization, Error>) async -> Bool {
         print("[Auth] 🍎 Processing Apple Sign In result...")
         
@@ -232,6 +235,7 @@ final class AuthenticationManager: ObservableObject {
     // MARK: - Google Sign In (Placeholder for future implementation)
     
     /// Handle Google Sign In (to be implemented with Google SDK)
+    @MainActor
     func authenticateWithGoogle() async -> Bool {
         print("[Auth] 🌐 Google Sign In not yet implemented")
         lastError = "Google Sign In coming soon!"
@@ -240,6 +244,7 @@ final class AuthenticationManager: ObservableObject {
     
     // MARK: - Private Helpers
     
+    @MainActor
     private func authenticateUser(_ user: User) async {
         currentUser = user
         authenticationState = .authenticated(user)
@@ -263,6 +268,7 @@ final class AuthenticationManager: ObservableObject {
         keychainService.storeSessionExpiry(expiryDate)
     }
     
+    @MainActor
     private func clearSession() async {
         keychainService.clearAllUserData()
         authenticationState = .unauthenticated

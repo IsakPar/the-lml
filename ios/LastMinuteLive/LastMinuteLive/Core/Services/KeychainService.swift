@@ -3,7 +3,6 @@ import Security
 
 /// Secure keychain storage service following DDD principles
 /// Handles secure storage of tokens, user data, and sensitive information
-@MainActor
 final class KeychainService: ObservableObject {
     
     // MARK: - Constants
