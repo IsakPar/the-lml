@@ -388,14 +388,33 @@ private struct MainContentSection: View {
                 
             } else if let model = seatmapService.model {
                 GeometryReader { geo in
-                    let canvas = (geo.size.width < 100 || geo.size.height < 100) 
+                    let rawCanvas = geo.size
+                    let canvas = (rawCanvas.width < 100 || rawCanvas.height < 100) 
                         ? UIScreen.main.bounds.size 
-                        : geo.size
+                        : rawCanvas
                     
-                    // ✅ FIXED: Use new modular SeatmapCanvas component
+                    // ✅ RESTORED: Advanced transform options from original (fixes right seat cutoff)
+                    let options: SeatmapTransformOptions = {
+                        var opts = SeatmapTransformOptions()
+                        opts.flipOverride = false
+                        opts.paddingPx = 15.0
+                        opts.useOptimalScaling = true
+                        opts.usePerfectCentering = true
+                        opts.centeringOffsetX = -37.5  // Critical: prevents right seats cutoff
+                        return opts
+                    }()
+                    let worldSize = CGSize(width: model.viewportWidth, height: model.viewportHeight)
+                    let transformResult = try? computeSeatmapTransform(
+                        seats: model.seats, 
+                        worldSize: worldSize, 
+                        canvasSize: canvas, 
+                        options: options
+                    )
+                    
+                    // ✅ FIXED: Use new modular SeatmapCanvas with proper transform
                     SeatmapCanvas(
                         seats: model.seats,
-                        transformResult: try? computeSeatmapTransform(seats: model.seats, canvasSize: canvas),
+                        transformResult: transformResult,
                         canvasSize: canvas,
                         selectedSeats: selectedSeats,
                         seatAvailability: seatmapService.seatAvailability,

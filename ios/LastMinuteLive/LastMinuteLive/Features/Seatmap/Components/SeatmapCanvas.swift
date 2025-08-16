@@ -106,8 +106,9 @@ private struct SeatView: View {
     
     var body: some View {
         let isLargeBlock = seat.w > 0.05 || seat.h > 0.05
-        let seatWidth: CGFloat = isLargeBlock ? seat.w * scale : radiusPx * 2.6
-        let seatHeight: CGFloat = isLargeBlock ? seat.h * scale : radiusPx * 2.0
+        // ✅ ENHANCED: More pronounced theater seat proportions
+        let seatWidth: CGFloat = isLargeBlock ? seat.w * scale : radiusPx * 3.0
+        let seatHeight: CGFloat = isLargeBlock ? seat.h * scale : radiusPx * 2.2
         let width: CGFloat = seatWidth
         let height: CGFloat = seatHeight
         let x = seat.x * scale + dx
@@ -146,32 +147,33 @@ private struct SeatShape: View {
     var body: some View {
         Group {
             if isLargeBlock {
-                RoundedRectangle(cornerRadius: 8)
+                // Large blocks (special seating areas)
+                RoundedRectangle(cornerRadius: 6)
                     .fill(fillColor)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.black.opacity(0.2), lineWidth: 2)
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color.black.opacity(0.25), lineWidth: 1.5)
                     )
             } else {
-                // Realistic theater seat shape
-                RoundedRectangle(cornerRadius: 4)
+                // ✅ ENHANCED: Professional theater seat design
+                RoundedRectangle(cornerRadius: 3)
                     .fill(fillColor)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 4)
-                            .stroke(Color.black.opacity(0.15), lineWidth: 0.8)
+                        RoundedRectangle(cornerRadius: 3)
+                            .stroke(Color.black.opacity(0.2), lineWidth: 1.0)
                     )
                     .overlay(
-                        // Subtle seat texture
-                        RoundedRectangle(cornerRadius: 4)
+                        // Enhanced seat texture for depth
+                        RoundedRectangle(cornerRadius: 3)
                             .fill(
                                 LinearGradient(
                                     colors: [
-                                        Color.white.opacity(0.1),
+                                        Color.white.opacity(0.15),
                                         Color.clear,
-                                        Color.black.opacity(0.05)
+                                        Color.black.opacity(0.1)
                                     ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
+                                    startPoint: .top,
+                                    endPoint: .bottom
                                 )
                             )
                     )
@@ -180,9 +182,12 @@ private struct SeatShape: View {
         .frame(width: width, height: height)
         .scaleEffect(isSelected ? 1.1 : 1.0)
         .shadow(
-            color: isSelected ? StageKit.brandEnd.opacity(0.4) : Color.clear,
-            radius: isSelected ? 8 : 0,
-            x: 0, y: 2
+            color: isSelected 
+                ? StageKit.brandEnd.opacity(0.5)  // Enhanced selection glow
+                : Color.black.opacity(0.15),      // Subtle depth shadow for all seats
+            radius: isSelected ? 8 : 2,
+            x: 0, 
+            y: isSelected ? 2 : 1
         )
     }
     
