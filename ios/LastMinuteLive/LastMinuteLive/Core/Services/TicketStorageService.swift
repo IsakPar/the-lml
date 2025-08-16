@@ -70,27 +70,8 @@ final class TicketStorageService: ObservableObject {
     
     /// Store a ticket model directly
     func storeTicket(_ ticketModel: TicketDisplayModel) async throws {
-        // Add user ID if not present
-        var updatedModel = ticketModel
-        if ticketModel.customerEmail.isEmpty, let userEmail = keychainService.getUserEmail() {
-            updatedModel = TicketDisplayModel(
-                id: ticketModel.id,
-                orderId: ticketModel.orderId,
-                eventName: ticketModel.eventName,
-                venueName: ticketModel.venueName,
-                eventDate: ticketModel.eventDate,
-                seatInfo: ticketModel.seatInfo,
-                qrData: ticketModel.qrData,
-                purchaseDate: ticketModel.purchaseDate,
-                totalAmount: ticketModel.totalAmount,
-                currency: ticketModel.currency,
-                customerEmail: userEmail,
-                isScanned: ticketModel.isScanned,
-                syncStatus: ticketModel.syncStatus
-            )
-        }
-        
-        try await ticketRepository.save(updatedModel)
+        // The ticketModel is used as-is since we'll set user ID at the repository level
+        try await ticketRepository.save(ticketModel)
     }
     
     // MARK: - Ticket Loading Operations

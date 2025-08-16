@@ -121,10 +121,10 @@ struct TicketDetailView: View {
             // QR Code Container
             VStack(spacing: 16) {
                 TicketQRCodeView(
-                    qrData: ticket.qrData,
+                    data: ticket.qrData,
                     size: 200,
-                    foregroundColor: .black,
-                    backgroundColor: .white
+                    backgroundColor: .white,
+                    foregroundColor: .black
                 )
                 .cornerRadius(16)
                 .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
@@ -191,7 +191,7 @@ struct TicketDetailView: View {
     private var actionButtonsSection: some View {
         VStack(spacing: 12) {
             // Add to Wallet Button (if available)
-            if PKAddPassButton.canAddPasses() {
+            if PKPassLibrary.isPassLibraryAvailable() {
                 PKAddPassButtonRepresentable(
                     style: .black,
                     onTap: {

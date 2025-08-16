@@ -140,7 +140,7 @@ final class CoreDataManager: ObservableObject {
         let context = backgroundContext
         
         context.perform {
-            let fetchRequest: NSFetchRequest<NSFetchRequestResult> = Ticket.fetchRequest()
+            let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "Ticket")
             let deleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
             
             do {
@@ -159,7 +159,7 @@ final class CoreDataManager: ObservableObject {
     
     /// Get ticket count
     func getTicketCount() -> Int {
-        let fetchRequest: NSFetchRequest<Ticket> = Ticket.fetchRequest()
+        let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "Ticket")
         
         do {
             return try viewContext.count(for: fetchRequest)
@@ -178,56 +178,4 @@ final class CoreDataManager: ObservableObject {
     }
 }
 
-// MARK: - SwiftUI Integration
 
-extension CoreDataManager {
-    
-    /// Get all tickets as a Published array for SwiftUI
-    @Published var tickets: [Ticket] = []
-    
-    /// Fetch tickets for a specific user
-    func fetchTickets(for userId: String) {
-        let fetchRequest: NSFetchRequest<Ticket> = Ticket.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "userId == %@", userId)
-        fetchRequest.sortDescriptors = [
-            NSSortDescriptor(keyPath: \Ticket.eventDate, ascending: true),
-            NSSortDescriptor(keyPath: \Ticket.purchaseDate, ascending: false)
-        ]
-        
-        do {
-            let fetchedTickets = try viewContext.fetch(fetchRequest)
-            DispatchQueue.main.async {
-                self.tickets = fetchedTickets
-                print("[CoreData] 🎫 Fetched \(fetchedTickets.count) tickets for user: \(userId)")
-            }
-        } catch {
-            print("[CoreData] ❌ Failed to fetch tickets: \(error)")
-            DispatchQueue.main.async {
-                self.tickets = []
-            }
-        }
-    }
-    
-    /// Refresh tickets from Core Data
-    func refreshTickets() {
-        guard let currentUser = AuthenticationManager.currentUserId else {
-            tickets = []
-            return
-        }
-        
-        fetchTickets(for: currentUser)
-    }
-}
-
-// MARK: - Authentication Integration
-
-extension AuthenticationManager {
-    
-    /// Get current user ID for Core Data queries
-    static var currentUserId: String? {
-        // This would ideally be accessed through a shared instance
-        // For now, we'll use a computed property that checks keychain
-        let keychain = KeychainService()
-        return keychain.getUserId()
-    }
-}

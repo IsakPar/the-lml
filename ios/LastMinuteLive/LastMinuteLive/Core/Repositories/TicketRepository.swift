@@ -2,6 +2,32 @@ import Foundation
 import CoreData
 import Combine
 
+// MARK: - Temporary Protocol for Testing
+
+/// Temporary protocol until Core Data auto-generation is working
+protocol TicketRepositoryProtocolTemp {
+    func saveTemp(_ ticketModel: TicketDisplayModel) async throws
+}
+
+/// Temporary implementation for testing
+final class TicketRepositoryTemp: TicketRepositoryProtocolTemp, ObservableObject {
+    
+    private let coreDataManager: CoreDataManager
+    
+    // Published array for SwiftUI integration
+    @Published var tickets: [TicketDisplayModel] = []
+    
+    init(coreDataManager: CoreDataManager = .shared) {
+        self.coreDataManager = coreDataManager
+        print("[TicketRepository] 📚 Temporary repository initialized")
+    }
+    
+    func saveTemp(_ ticketModel: TicketDisplayModel) async throws {
+        // Temporary implementation - just print for now
+        print("[TicketRepository] ✅ Temp ticket saved: \(ticketModel.eventName)")
+    }
+}
+
 /// Repository interface for ticket operations following DDD principles
 protocol TicketRepositoryProtocol {
     func save(_ ticket: TicketDisplayModel) async throws
@@ -14,212 +40,244 @@ protocol TicketRepositoryProtocol {
     func fetchPendingSync() async throws -> [TicketDisplayModel]
 }
 
-/// Core Data implementation of TicketRepository
+// MARK: - Temporary Implementation
+// TODO: Replace with Core Data implementation once auto-generation is working
+
+/// Temporary in-memory implementation of TicketRepository  
 final class TicketRepository: TicketRepositoryProtocol, ObservableObject {
-    
-    private let coreDataManager: CoreDataManager
     
     // Published array for SwiftUI integration
     @Published var tickets: [TicketDisplayModel] = []
     
+    // In-memory storage for testing
+    private var storedTickets: [String: TicketDisplayModel] = [:]
+    private let queue = DispatchQueue(label: "ticket.repository", qos: .userInitiated)
+    
     init(coreDataManager: CoreDataManager = .shared) {
-        self.coreDataManager = coreDataManager
-        print("[TicketRepository] 📚 Repository initialized")
+        print("[TicketRepository] 📚 Temporary repository initialized (in-memory)")
     }
     
     // MARK: - Save Operations
     
-    /// Save a new ticket to persistent storage
+    /// Save a new ticket to in-memory storage
     func save(_ ticketModel: TicketDisplayModel) async throws {
-        let context = coreDataManager.backgroundContext
-        
-        try await context.perform {
-            // Check if ticket already exists
-            let fetchRequest: NSFetchRequest<Ticket> = Ticket.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "orderId == %@", ticketModel.orderId)
-            
-            let existingTickets = try context.fetch(fetchRequest)
-            
-            if existingTickets.isEmpty {
-                // Create new ticket
-                let _ = Ticket(
-                    context: context,
-                    orderId: ticketModel.orderId,
-                    eventName: ticketModel.eventName,
-                    venueName: ticketModel.venueName,
-                    eventDate: ticketModel.eventDate,
-                    seatInfo: ticketModel.seatInfo,
-                    qrData: ticketModel.qrData,
-                    purchaseDate: ticketModel.purchaseDate,
-                    totalAmount: ticketModel.totalAmount,
-                    currency: ticketModel.currency,
-                    customerEmail: ticketModel.customerEmail,
-                    userId: "" // Will be set by the service layer
-                )
+        await withCheckedContinuation { continuation in
+            queue.async { [weak self] in
+                guard let self = self else {
+                    continuation.resume()
+                    return
+                }
                 
-                try context.save()
-                print("[TicketRepository] ✅ Ticket saved: \(ticketModel.eventName)")
-            } else {
-                print("[TicketRepository] ⚠️ Ticket already exists: \(ticketModel.orderId)")
+                // Check if ticket already exists
+                if self.storedTickets[ticketModel.orderId] == nil {
+                    self.storedTickets[ticketModel.orderId] = ticketModel
+                    
+                    DispatchQueue.main.async {
+                        self.tickets = Array(self.storedTickets.values).sorted { $0.eventDate > $1.eventDate }
+                        print("[TicketRepository] ✅ Ticket saved (in-memory): \(ticketModel.eventName)")
+                    }
+                } else {
+                    print("[TicketRepository] ⚠️ Ticket already exists: \(ticketModel.orderId)")
+                }
+                
+                continuation.resume()
             }
         }
     }
     
     // MARK: - Fetch Operations
     
-    /// Fetch all tickets for a specific user
+    /// Fetch all tickets for a specific user (in-memory)
     func fetchAll(for userId: String) async throws -> [TicketDisplayModel] {
-        let context = coreDataManager.viewContext
-        
-        return try await context.perform {
-            let fetchRequest: NSFetchRequest<Ticket> = Ticket.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "userId == %@", userId)
-            fetchRequest.sortDescriptors = [
-                NSSortDescriptor(keyPath: \Ticket.eventDate, ascending: true),
-                NSSortDescriptor(keyPath: \Ticket.purchaseDate, ascending: false)
-            ]
-            
-            let tickets = try context.fetch(fetchRequest)
-            let displayModels = tickets.compactMap { ticket in
-                guard ticket.isValid else { return nil }
-                return TicketDisplayModel(from: ticket)
+        return await withCheckedContinuation { continuation in
+            queue.async { [weak self] in
+                guard let self = self else {
+                    continuation.resume(returning: [])
+                    return
+                }
+                
+                let userTickets = Array(self.storedTickets.values)
+                    .sorted { ticket1, ticket2 in
+                        // Sort by event date (upcoming first), then by purchase date (newest first)
+                        if ticket1.eventDate != ticket2.eventDate {
+                            return ticket1.eventDate > ticket2.eventDate
+                        }
+                        return ticket1.purchaseDate > ticket2.purchaseDate
+                    }
+                
+                print("[TicketRepository] 📋 Fetched \(userTickets.count) tickets (in-memory)")
+                continuation.resume(returning: userTickets)
             }
-            
-            print("[TicketRepository] 📋 Fetched \(displayModels.count) tickets for user: \(userId)")
-            return displayModels
         }
     }
     
-    /// Fetch a specific ticket by ID
+    /// Fetch a specific ticket by ID (in-memory)
     func fetchById(_ id: UUID) async throws -> TicketDisplayModel? {
-        let context = coreDataManager.viewContext
-        
-        return try await context.perform {
-            let fetchRequest: NSFetchRequest<Ticket> = Ticket.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-            fetchRequest.fetchLimit = 1
-            
-            let tickets = try context.fetch(fetchRequest)
-            guard let ticket = tickets.first, ticket.isValid else { return nil }
-            
-            return TicketDisplayModel(from: ticket)
-        }
-    }
-    
-    /// Fetch a ticket by order ID
-    func fetchByOrderId(_ orderId: String) async throws -> TicketDisplayModel? {
-        let context = coreDataManager.viewContext
-        
-        return try await context.perform {
-            let fetchRequest: NSFetchRequest<Ticket> = Ticket.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "orderId == %@", orderId)
-            fetchRequest.fetchLimit = 1
-            
-            let tickets = try context.fetch(fetchRequest)
-            guard let ticket = tickets.first, ticket.isValid else { return nil }
-            
-            return TicketDisplayModel(from: ticket)
-        }
-    }
-    
-    /// Fetch tickets that need to be synced
-    func fetchPendingSync() async throws -> [TicketDisplayModel] {
-        let context = coreDataManager.viewContext
-        
-        return try await context.perform {
-            let fetchRequest: NSFetchRequest<Ticket> = Ticket.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "syncStatus != %@", TicketSyncStatus.synced.rawValue)
-            fetchRequest.sortDescriptors = [
-                NSSortDescriptor(keyPath: \Ticket.updatedAt, ascending: true)
-            ]
-            
-            let tickets = try context.fetch(fetchRequest)
-            let displayModels = tickets.compactMap { ticket in
-                guard ticket.isValid else { return nil }
-                return TicketDisplayModel(from: ticket)
+        return await withCheckedContinuation { continuation in
+            queue.async { [weak self] in
+                guard let self = self else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                
+                let ticket = self.storedTickets.values.first { $0.id == id }
+                continuation.resume(returning: ticket)
             }
-            
-            print("[TicketRepository] 🔄 Found \(displayModels.count) tickets pending sync")
-            return displayModels
+        }
+    }
+    
+    /// Fetch a ticket by order ID (in-memory)
+    func fetchByOrderId(_ orderId: String) async throws -> TicketDisplayModel? {
+        return await withCheckedContinuation { continuation in
+            queue.async { [weak self] in
+                guard let self = self else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                
+                let ticket = self.storedTickets[orderId]
+                continuation.resume(returning: ticket)
+            }
+        }
+    }
+    
+    /// Fetch tickets that need to be synced (in-memory)
+    func fetchPendingSync() async throws -> [TicketDisplayModel] {
+        return await withCheckedContinuation { continuation in
+            queue.async { [weak self] in
+                guard let self = self else {
+                    continuation.resume(returning: [])
+                    return
+                }
+                
+                let pendingTickets = Array(self.storedTickets.values)
+                    .filter { $0.syncStatus != .synced }
+                    .sorted { $0.purchaseDate < $1.purchaseDate }
+                
+                print("[TicketRepository] 🔄 Found \(pendingTickets.count) tickets pending sync (in-memory)")
+                continuation.resume(returning: pendingTickets)
+            }
         }
     }
     
     // MARK: - Update Operations
     
-    /// Mark a ticket as scanned
+    /// Mark a ticket as scanned (in-memory)
     func markAsScanned(_ ticketId: UUID) async throws {
-        let context = coreDataManager.backgroundContext
-        
-        try await context.perform {
-            let fetchRequest: NSFetchRequest<Ticket> = Ticket.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "id == %@", ticketId as CVarArg)
-            fetchRequest.fetchLimit = 1
-            
-            let tickets = try context.fetch(fetchRequest)
-            guard let ticket = tickets.first else {
-                throw TicketRepositoryError.ticketNotFound
+        await withCheckedContinuation { continuation in
+            queue.async { [weak self] in
+                guard let self = self else {
+                    continuation.resume()
+                    return
+                }
+                
+                for (orderId, ticket) in self.storedTickets {
+                    if ticket.id == ticketId {
+                        let updatedTicket = TicketDisplayModel(
+                            id: ticket.id,
+                            orderId: ticket.orderId,
+                            eventName: ticket.eventName,
+                            venueName: ticket.venueName,
+                            eventDate: ticket.eventDate,
+                            seatInfo: ticket.seatInfo,
+                            qrData: ticket.qrData,
+                            purchaseDate: ticket.purchaseDate,
+                            totalAmount: ticket.totalAmount,
+                            currency: ticket.currency,
+                            customerEmail: ticket.customerEmail,
+                            isScanned: true,
+                            syncStatus: ticket.syncStatus
+                        )
+                        self.storedTickets[orderId] = updatedTicket
+                        
+                        DispatchQueue.main.async {
+                            self.tickets = Array(self.storedTickets.values).sorted { $0.eventDate > $1.eventDate }
+                            print("[TicketRepository] ✅ Ticket marked as scanned (in-memory): \(ticketId)")
+                        }
+                        break
+                    }
+                }
+                continuation.resume()
             }
-            
-            ticket.markAsScanned()
-            try context.save()
-            
-            print("[TicketRepository] ✅ Ticket marked as scanned: \(ticketId)")
         }
     }
     
-    /// Update sync status for a ticket
+    /// Update sync status for a ticket (in-memory)
     func updateSyncStatus(_ ticketId: UUID, status: TicketSyncStatus) async throws {
-        let context = coreDataManager.backgroundContext
-        
-        try await context.perform {
-            let fetchRequest: NSFetchRequest<Ticket> = Ticket.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "id == %@", ticketId as CVarArg)
-            fetchRequest.fetchLimit = 1
-            
-            let tickets = try context.fetch(fetchRequest)
-            guard let ticket = tickets.first else {
-                throw TicketRepositoryError.ticketNotFound
+        await withCheckedContinuation { continuation in
+            queue.async { [weak self] in
+                guard let self = self else {
+                    continuation.resume()
+                    return
+                }
+                
+                for (orderId, ticket) in self.storedTickets {
+                    if ticket.id == ticketId {
+                        let updatedTicket = TicketDisplayModel(
+                            id: ticket.id,
+                            orderId: ticket.orderId,
+                            eventName: ticket.eventName,
+                            venueName: ticket.venueName,
+                            eventDate: ticket.eventDate,
+                            seatInfo: ticket.seatInfo,
+                            qrData: ticket.qrData,
+                            purchaseDate: ticket.purchaseDate,
+                            totalAmount: ticket.totalAmount,
+                            currency: ticket.currency,
+                            customerEmail: ticket.customerEmail,
+                            isScanned: ticket.isScanned,
+                            syncStatus: status
+                        )
+                        self.storedTickets[orderId] = updatedTicket
+                        
+                        DispatchQueue.main.async {
+                            self.tickets = Array(self.storedTickets.values).sorted { $0.eventDate > $1.eventDate }
+                            print("[TicketRepository] 🔄 Updated sync status (in-memory): \(status.rawValue)")
+                        }
+                        break
+                    }
+                }
+                continuation.resume()
             }
-            
-            ticket.updateSyncStatus(status)
-            try context.save()
-            
-            print("[TicketRepository] 🔄 Updated sync status: \(status.rawValue)")
         }
     }
     
     // MARK: - Delete Operations
     
-    /// Delete a ticket from persistent storage
+    /// Delete a ticket from in-memory storage
     func delete(_ ticketId: UUID) async throws {
-        let context = coreDataManager.backgroundContext
-        
-        try await context.perform {
-            let fetchRequest: NSFetchRequest<Ticket> = Ticket.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "id == %@", ticketId as CVarArg)
-            fetchRequest.fetchLimit = 1
-            
-            let tickets = try context.fetch(fetchRequest)
-            guard let ticket = tickets.first else {
-                throw TicketRepositoryError.ticketNotFound
+        await withCheckedContinuation { continuation in
+            queue.async { [weak self] in
+                guard let self = self else {
+                    continuation.resume()
+                    return
+                }
+                
+                for (orderId, ticket) in self.storedTickets {
+                    if ticket.id == ticketId {
+                        self.storedTickets.removeValue(forKey: orderId)
+                        
+                        DispatchQueue.main.async {
+                            self.tickets = Array(self.storedTickets.values).sorted { $0.eventDate > $1.eventDate }
+                            print("[TicketRepository] 🗑️ Ticket deleted (in-memory): \(ticketId)")
+                        }
+                        break
+                    }
+                }
+                continuation.resume()
             }
-            
-            context.delete(ticket)
-            try context.save()
-            
-            print("[TicketRepository] 🗑️ Ticket deleted: \(ticketId)")
         }
     }
     
     // MARK: - SwiftUI Integration
     
-    /// Refresh published tickets for SwiftUI
+    /// Refresh published tickets for SwiftUI (in-memory)
     @MainActor
     func refreshPublishedTickets(for userId: String) async {
         do {
             let fetchedTickets = try await fetchAll(for: userId)
             self.tickets = fetchedTickets
-            print("[TicketRepository] 🔄 Published tickets refreshed: \(fetchedTickets.count)")
+            print("[TicketRepository] 🔄 Published tickets refreshed (in-memory): \(fetchedTickets.count)")
         } catch {
             print("[TicketRepository] ❌ Failed to refresh published tickets: \(error)")
             self.tickets = []

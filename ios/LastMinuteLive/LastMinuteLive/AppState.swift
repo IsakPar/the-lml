@@ -35,13 +35,12 @@ final class AppState: ObservableObject {
     // Initialize authentication manager
     authenticationManager = AuthenticationManager(apiClient: api)
     
-    // Initialize ticket storage service
-    ticketStorageService = TicketStorageService(authenticationManager: authenticationManager)
-    
     print("[AppState] Initialized with orgId: \(Config.defaultOrgId)")
     
-    // Setup observers on main thread
+    // Setup observers and ticket storage service on main thread
     Task { @MainActor in
+      // Initialize ticket storage service in MainActor context
+      ticketStorageService = TicketStorageService(authenticationManager: authenticationManager)
       setupAuthenticationObservers()
     }
   }
