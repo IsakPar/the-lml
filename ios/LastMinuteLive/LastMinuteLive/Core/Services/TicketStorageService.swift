@@ -162,6 +162,15 @@ final class TicketStorageService: ObservableObject {
         }
     }
     
+    /// Clear all tickets from storage (used during logout)
+    func clearAllTickets() {
+        print("[TicketStorage] 🧹 Clearing all tickets from storage")
+        tickets.removeAll()
+        lastError = nil
+        isLoading = false
+        print("[TicketStorage] ✅ All tickets cleared")
+    }
+    
     // MARK: - Sync Operations
     
     /// Sync pending tickets with backend

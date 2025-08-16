@@ -13,12 +13,14 @@ struct EmailInputField: View {
     // MARK: - Configuration
     let placeholder: String
     let prefillEmail: String?
+    let isRequired: Bool // New: Whether email is required (when not authenticated)
     
     // MARK: - Initialization
-    init(email: Binding<String>, placeholder: String = "Enter email for receipt", prefillEmail: String? = nil) {
+    init(email: Binding<String>, placeholder: String = "Enter email for receipt", prefillEmail: String? = nil, isRequired: Bool = false) {
         self._email = email
         self.placeholder = placeholder
         self.prefillEmail = prefillEmail
+        self.isRequired = isRequired
     }
     
     // MARK: - Computed Properties
@@ -27,11 +29,24 @@ struct EmailInputField: View {
     }
     
     private var showError: Bool {
-        !isFieldFocused && !email.isEmpty && !isValid
+        if isRequired {
+            // Show error if required and (empty or invalid)
+            return !isFieldFocused && (email.isEmpty || !isValid)
+        } else {
+            // Show error only if not empty and invalid
+            return !isFieldFocused && !email.isEmpty && !isValid
+        }
     }
     
     private var showSuccess: Bool {
         !email.isEmpty && isValid
+    }
+    
+    private var effectivePlaceholder: String {
+        if isRequired {
+            return placeholder + " *"
+        }
+        return placeholder
     }
     
     // MARK: - View Body
@@ -66,7 +81,7 @@ struct EmailInputField: View {
             }
             
             // Email text field with glassmorphism styling
-            TextField(placeholder, text: $email)
+            TextField(effectivePlaceholder, text: $email)
                 .textFieldStyle(.plain)
                 .keyboardType(.emailAddress)
                 .textContentType(.emailAddress)
@@ -128,7 +143,11 @@ struct EmailInputField: View {
     }
     
     private func validateEmail(_ emailText: String) {
-        validationResult = EmailValidator.validate(emailText)
+        if isRequired && emailText.isEmpty {
+            validationResult = .invalid("Email is required")
+        } else {
+            validationResult = EmailValidator.validate(emailText)
+        }
     }
     
     private func prefillEmailIfNeeded() {

@@ -3,14 +3,16 @@ import SwiftUI
 struct TicketsView: View {
     @EnvironmentObject var app: AppState
     @EnvironmentObject var navigationCoordinator: NavigationCoordinator
-    @StateObject private var ticketStorageService: TicketStorageService
     @State private var showingTicketDetail: TicketDisplayModel?
+    @State private var isLoadingTickets = false
     
-    init() {
-        // Initialize with placeholder - will be properly set in onAppear
-        self._ticketStorageService = StateObject(wrappedValue: 
-            TicketStorageService(authenticationManager: AuthenticationManager(apiClient: ApiClient(baseURL: Config.apiBaseURL)))
-        )
+    // Computed property to get tickets from shared service
+    private var tickets: [TicketDisplayModel] {
+        app.ticketStorageService?.tickets ?? []
+    }
+    
+    private var isLoading: Bool {
+        isLoadingTickets || (app.ticketStorageService?.isLoading ?? false)
     }
     
     var body: some View {
@@ -20,7 +22,7 @@ struct TicketsView: View {
                 
                 Group {
                     if app.isAuthenticated {
-                        if ticketStorageService.isLoading {
+                        if isLoading {
                             // Loading state
                             VStack(spacing: 16) {
                                 ProgressView()
@@ -30,7 +32,7 @@ struct TicketsView: View {
                                     .font(.subheadline)
                                     .foregroundColor(.white.opacity(0.8))
                             }
-                        } else if ticketStorageService.tickets.isEmpty {
+                        } else if tickets.isEmpty {
                             // Empty state
                             VStack(spacing: 16) {
                                 Image(systemName: "ticket.fill")
@@ -74,7 +76,7 @@ struct TicketsView: View {
                             // Tickets list
                             ScrollView {
                                 LazyVStack(spacing: 16) {
-                                    ForEach(ticketStorageService.tickets, id: \.id) { ticket in
+                                    ForEach(tickets, id: \.id) { ticket in
                                         ModernTicketRow(
                                             ticket: ticket,
                                             onTap: {
@@ -138,7 +140,7 @@ struct TicketsView: View {
                 setupTicketStorage()
             }
             .refreshable {
-                await ticketStorageService.refreshTickets()
+                await refreshTickets()
             }
         }
         .sheet(item: $showingTicketDetail) { ticket in
@@ -149,19 +151,40 @@ struct TicketsView: View {
     // MARK: - Setup Methods
     
     private func setupTicketStorage() {
-        // Use the proper authentication manager from app state
-        let properTicketStorage = TicketStorageService(authenticationManager: app.authenticationManager)
+        // Use the shared ticket storage service from AppState
+        guard let sharedTicketService = app.ticketStorageService else {
+            print("[TicketsView] ❌ No shared ticket storage service available")
+            return
+        }
         
         // Load tickets for current user
         Task {
-            await properTicketStorage.loadTicketsForCurrentUser()
-            
-            // Update the published tickets
+            isLoadingTickets = true
+            await sharedTicketService.loadTicketsForCurrentUser()
             await MainActor.run {
-                // Since we can't replace @StateObject, we'll trigger a refresh
-                ticketStorageService.tickets = properTicketStorage.tickets
+                isLoadingTickets = false
             }
+            print("[TicketsView] ✅ Loaded \(sharedTicketService.tickets.count) tickets from shared service")
         }
+    }
+    
+    private func refreshTickets() async {
+        guard let sharedTicketService = app.ticketStorageService else {
+            print("[TicketsView] ❌ No shared ticket storage service available for refresh")
+            return
+        }
+        
+        await MainActor.run {
+            isLoadingTickets = true
+        }
+        
+        await sharedTicketService.refreshTickets()
+        
+        await MainActor.run {
+            isLoadingTickets = false
+        }
+        
+        print("[TicketsView] 🔄 Refreshed tickets from shared service")
     }
 }
 

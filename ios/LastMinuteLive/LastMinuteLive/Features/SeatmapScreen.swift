@@ -174,7 +174,8 @@ struct SeatmapScreen: View {
             _ = selectedSeats.remove(seatId)
           }
         },
-        userEmail: app.userEmail
+        userEmail: app.userEmail,
+        isUserAuthenticated: app.isAuthenticated
       )
       .padding(.bottom, 0)
     }

@@ -7,6 +7,7 @@ struct ShoppingBasket: View {
   let onCheckout: (String) -> Void // Now passes email to checkout
   let onRemoveSeat: (String) -> Void
   let userEmail: String? // Pre-fill email for logged-in users
+  let isUserAuthenticated: Bool // Whether user is logged in (affects validation)
   
   // MARK: - State Management  
   @State private var isVisible = false
@@ -97,7 +98,9 @@ struct ShoppingBasket: View {
           // Email input field for receipt
           EmailInputField(
             email: $email,
-            prefillEmail: userEmail
+            placeholder: isUserAuthenticated ? "Receipt email (optional)" : "Email for receipt",
+            prefillEmail: userEmail,
+            isRequired: !isUserAuthenticated
           )
           .padding(.horizontal, 16)
           

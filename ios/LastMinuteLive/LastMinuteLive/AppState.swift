@@ -45,6 +45,24 @@ final class AppState: ObservableObject {
     }
   }
   
+  // MARK: - User State Management
+  
+  /// Clear all user-specific data (called during logout)
+  @MainActor
+  func clearUserData() {
+    print("[AppState] 🧹 Clearing all user data")
+    
+    // Clear legacy properties
+    userEmail = nil
+    accessToken = nil
+    isAuthenticated = false
+    
+    // Clear ticket storage if available
+    ticketStorageService?.clearAllTickets()
+    
+    print("[AppState] ✅ User data cleared")
+  }
+  
   // MARK: - Authentication State Synchronization
   
   @MainActor
@@ -67,10 +85,9 @@ final class AppState: ObservableObject {
       print("[AppState] ✅ Authentication synced: \(user.email)")
       
     case .unauthenticated, .expired:
-      isAuthenticated = false
-      userEmail = nil
-      accessToken = nil
-      print("[AppState] ❌ Authentication cleared")
+      // Use clearUserData to properly clear all user-specific data
+      clearUserData()
+      print("[AppState] ❌ Authentication cleared - all user data cleaned")
     }
   }
 

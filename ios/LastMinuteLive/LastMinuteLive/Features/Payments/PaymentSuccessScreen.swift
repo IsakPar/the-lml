@@ -25,17 +25,11 @@ struct PaymentSuccessScreen: View {
     
     // Environment and state for ticket storage
     @EnvironmentObject var app: AppState
-    @StateObject private var ticketStorageService: TicketStorageService
     @State private var ticketStorageComplete = false
     
     init(successData: PaymentSuccessData, navigationCoordinator: NavigationCoordinator) {
         self.successData = successData
         self.navigationCoordinator = navigationCoordinator
-        
-        // Initialize with a placeholder - will be properly set in onAppear
-        self._ticketStorageService = StateObject(wrappedValue: 
-            TicketStorageService(authenticationManager: AuthenticationManager(apiClient: ApiClient(baseURL: Config.apiBaseURL)))
-        )
     }
     
     private var cleanTicketData: CleanTicketData {
@@ -105,14 +99,17 @@ struct PaymentSuccessScreen: View {
         
         print("[PaymentSuccess] 🎫 Storing ticket for order: \(successData.orderId)")
         
-        // Use the proper authentication manager from app state
-        let properTicketStorage = TicketStorageService(authenticationManager: app.authenticationManager)
+        // Use the shared ticket storage service from AppState
+        guard let sharedTicketService = app.ticketStorageService else {
+            print("[PaymentSuccess] ❌ No ticket storage service available")
+            return
+        }
         
-        let success = await properTicketStorage.storeTicketFromPayment(successData)
+        let success = await sharedTicketService.storeTicketFromPayment(successData)
         
         if success {
             ticketStorageComplete = true
-            print("[PaymentSuccess] ✅ Ticket stored successfully")
+            print("[PaymentSuccess] ✅ Ticket stored successfully in shared service")
         } else {
             print("[PaymentSuccess] ❌ Failed to store ticket")
         }
