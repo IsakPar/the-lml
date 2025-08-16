@@ -120,6 +120,14 @@ struct TicketDetailView: View {
             
             // QR Code Container
             VStack(spacing: 16) {
+                // 🔍 DEBUG: Log stored QR data
+                let _ = {
+                    print("[TicketDetailView] 📱 Displaying stored QR code:")
+                    print("[TicketDetailView] - Order ID: \(ticket.orderId)")
+                    print("[TicketDetailView] - Stored QR: \(ticket.qrData)")
+                    print("[TicketDetailView] - QR Length: \(ticket.qrData.count) characters")
+                }()
+                
                 TicketQRCodeView(
                     data: ticket.qrData,
                     size: 200,

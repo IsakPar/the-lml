@@ -178,6 +178,12 @@ struct CleanTicketData {
             seatNodes: seatNodes
         )
         self.qrData = "TICKET:\(successData.orderId):\(successData.performanceName):\(cleanDateTime):\(successData.seatIds.joined(separator: ","))"
+        
+        // 🔍 DEBUG: Log QR data generation
+        print("[CleanTicketData] 📱 QR Code generated:")
+        print("[CleanTicketData] - Order ID: \(successData.orderId)")  
+        print("[CleanTicketData] - QR Data: \(self.qrData)")
+        print("[CleanTicketData] - Length: \(self.qrData.count) characters")
         self.orderReference = DataFormatters.formatOrderReference(successData.orderId)
     }
 }

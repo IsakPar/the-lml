@@ -622,13 +622,24 @@ struct SeatmapScreen: View {
   
   // Helper function to format performance date
   private func formatPerformanceDate(_ isoDateString: String) -> String {
+    print("[SeatmapScreen] 🔍 DEBUGGING formatPerformanceDate:")
+    print("[SeatmapScreen] - Input isoDateString: '\(isoDateString)'")
+    
     let formatter = ISO8601DateFormatter()
     if let date = formatter.date(from: isoDateString) {
+      print("[SeatmapScreen] ✅ ISO8601 parsing successful: \(date)")
+      
       let displayFormatter = DateFormatter()
       displayFormatter.dateStyle = .full
       displayFormatter.timeStyle = .short
-      return displayFormatter.string(from: date)
+      let formatted = displayFormatter.string(from: date)
+      
+      print("[SeatmapScreen] ✅ Display format created: '\(formatted)'")
+      print("[SeatmapScreen] - Date is in future? \(date > Date())")
+      return formatted
     }
+    
+    print("[SeatmapScreen] ❌ ISO8601 parsing failed - returning original")
     return isoDateString
   }
   

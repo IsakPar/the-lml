@@ -19,14 +19,22 @@ struct SwipeableTickets: View {
             )]
         }
         
-        // Create individual tickets for each seat
+        // Create individual tickets for each seat - USE CONSISTENT QR FORMAT
         return nodes.map { seatNode in
             let seatDisplay = DataFormatters.getSeatDisplayText(from: seatNode) ?? seatNode.id
-            let qrData = "TICKET:\(cleanTicketData.orderReference):SEAT:\(seatDisplay):\(cleanTicketData.eventName):\(cleanTicketData.cleanDateTime)"
+            
+            // 🔧 FIXED: Use same QR format as stored tickets for consistency
+            // This matches the format from CleanTicketData.qrData
+            let qrData = cleanTicketData.qrData
+            
+            // 🔍 DEBUG: Log QR consistency
+            print("[SwipeableTickets] 🎫 Individual ticket for seat \(seatDisplay):")
+            print("[SwipeableTickets] - Using shared QR: \(qrData)")
+            print("[SwipeableTickets] - QR Length: \(qrData.count) characters")
             
             return IndividualTicketData(
                 seatDisplayName: seatDisplay,
-                qrData: qrData,
+                qrData: qrData, // Same QR for all seats in this order
                 eventName: cleanTicketData.eventName,
                 venueName: cleanTicketData.venueName,
                 dateTime: cleanTicketData.cleanDateTime,

@@ -310,16 +310,52 @@ final class TicketStorageService: ObservableObject {
         }
     }
     
-    /// Parse event date from string
+    /// Parse event date from string with comprehensive debugging
     private func parseEventDate(_ dateString: String) -> Date {
+        print("[TicketStorage] 📅 DEBUGGING parseEventDate:")
+        print("[TicketStorage] - Input dateString: '\(dateString)'")
+        print("[TicketStorage] - Current date: \(Date())")
+        
         // Try to parse the date string
         let formatter = ISO8601DateFormatter()
         if let date = formatter.date(from: dateString) {
+            print("[TicketStorage] ✅ ISO8601 parsing successful: \(date)")
+            print("[TicketStorage] - Parsed date > now? \(date > Date())")
             return date
         }
         
-        // Fallback to current date if parsing fails
-        print("[TicketStorage] ⚠️ Failed to parse event date: \(dateString)")
-        return Date()
+        // Try alternative formats
+        let alternativeFormatters = [
+            createDateFormatter("yyyy-MM-dd'T'HH:mm:ss"),
+            createDateFormatter("yyyy-MM-dd'T'HH:mm:ss'Z'"),
+            createDateFormatter("yyyy-MM-dd HH:mm:ss"),
+            createDateFormatter("MMMM dd, yyyy 'at' h:mm a")
+        ]
+        
+        for (index, altFormatter) in alternativeFormatters.enumerated() {
+            if let date = altFormatter.date(from: dateString) {
+                print("[TicketStorage] ✅ Alternative format \(index) parsing successful: \(date)")
+                print("[TicketStorage] - Parsed date > now? \(date > Date())")
+                return date
+            }
+        }
+        
+        // Fallback to current date if parsing fails - THIS IS THE BUG!
+        print("[TicketStorage] ❌ CRITICAL: Failed to parse event date: '\(dateString)'")
+        print("[TicketStorage] ❌ FALLBACK: Using current date - THIS MAKES EVENTS APPEAR PASSED!")
+        
+        // Instead of current date, let's use a far future date to avoid "passed" status
+        let farFuture = Calendar.current.date(byAdding: .year, value: 10, to: Date()) ?? Date()
+        print("[TicketStorage] 🔧 Using far future date as fallback: \(farFuture)")
+        return farFuture
+    }
+    
+    /// Helper to create date formatter with locale
+    private func createDateFormatter(_ format: String) -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = format
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        return formatter
     }
 }

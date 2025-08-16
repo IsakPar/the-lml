@@ -19,17 +19,17 @@ struct NativeActionButtons: View {
             
             // Native action buttons
             HStack(spacing: 12) {
-                // Add to Apple Wallet - Native PKAddPassButton style
+                // Add to Apple Wallet - Native SF Symbol
                 if PKPassLibrary.isPassLibraryAvailable() {
                     Button(action: onAddToWallet) {
-                        Label("Add to Wallet", systemImage: "wallet.pass")
+                        Label("Add to Wallet", systemImage: "plus.rectangle.on.folder.fill")
                             .font(.callout)
                             .fontWeight(.medium)
                     }
                     .buttonStyle(NativeActionButtonStyle(color: .black, isDisabled: false))
                 } else {
                     Button(action: onAddToWallet) {
-                        Label("Add to Wallet", systemImage: "wallet.pass")
+                        Label("Add to Wallet", systemImage: "plus.rectangle.on.folder")
                             .font(.callout)
                             .fontWeight(.medium)
                     }
@@ -44,17 +44,17 @@ struct NativeActionButtons: View {
                 }
                 .buttonStyle(NativeActionButtonStyle(color: StageKit.brandEnd, isDisabled: false))
                 
-                // Directions - Native maps button
+                // Directions - Native maps button with proper SF Symbol
                 if venueCoordinates != nil {
                     Button(action: onDirections) {
-                        Label("Maps", systemImage: "location")
+                        Label("Directions", systemImage: "map.fill")
                             .font(.callout)
                             .fontWeight(.medium)
                     }
                     .buttonStyle(NativeActionButtonStyle(color: StageKit.success, isDisabled: false))
                 } else {
                     Button(action: onDirections) {
-                        Label("Maps", systemImage: "location.slash")
+                        Label("Directions", systemImage: "map")
                             .font(.callout)
                             .fontWeight(.medium)
                     }
