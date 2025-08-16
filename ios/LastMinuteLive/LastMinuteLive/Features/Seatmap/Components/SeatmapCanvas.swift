@@ -106,9 +106,9 @@ private struct SeatView: View {
     
     var body: some View {
         let isLargeBlock = seat.w > 0.05 || seat.h > 0.05
-        // ✅ ENHANCED: More pronounced theater seat proportions
-        let seatWidth: CGFloat = isLargeBlock ? seat.w * scale : radiusPx * 3.0
-        let seatHeight: CGFloat = isLargeBlock ? seat.h * scale : radiusPx * 2.2
+        // ✅ ENHANCED: Much more pronounced rectangular theater seats
+        let seatWidth: CGFloat = isLargeBlock ? seat.w * scale : radiusPx * 3.5
+        let seatHeight: CGFloat = isLargeBlock ? seat.h * scale : radiusPx * 2.0
         let width: CGFloat = seatWidth
         let height: CGFloat = seatHeight
         let x = seat.x * scale + dx
@@ -147,24 +147,24 @@ private struct SeatShape: View {
     var body: some View {
         Group {
             if isLargeBlock {
-                // Large blocks (special seating areas)
-                RoundedRectangle(cornerRadius: 6)
+                // Large blocks (special seating areas) - clearly rectangular
+                RoundedRectangle(cornerRadius: 2)
                     .fill(fillColor)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 6)
+                        RoundedRectangle(cornerRadius: 2)
                             .stroke(Color.black.opacity(0.25), lineWidth: 1.5)
                     )
             } else {
-                // ✅ ENHANCED: Professional theater seat design
-                RoundedRectangle(cornerRadius: 3)
+                // ✅ ENHANCED: Clearly rectangular theater seat design
+                RoundedRectangle(cornerRadius: 1)
                     .fill(fillColor)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 3)
+                        RoundedRectangle(cornerRadius: 1)
                             .stroke(Color.black.opacity(0.2), lineWidth: 1.0)
                     )
                     .overlay(
                         // Enhanced seat texture for depth
-                        RoundedRectangle(cornerRadius: 3)
+                        RoundedRectangle(cornerRadius: 1)
                             .fill(
                                 LinearGradient(
                                     colors: [
