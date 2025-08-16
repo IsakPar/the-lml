@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AccountView: View {
   @EnvironmentObject var app: AppState
+  @EnvironmentObject var navigationCoordinator: NavigationCoordinator
   var body: some View {
     NavigationView {
       ScrollView {

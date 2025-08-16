@@ -133,15 +133,7 @@ final class NavigationCoordinator: ObservableObject {
 
 // MARK: - Navigation Data Models
 
-/// Simple show model for navigation context
-struct Show: Identifiable, Codable {
-    let id: String
-    let title: String
-    let venue: String
-    let nextPerformance: String?
-    let posterUrl: String?
-    let priceFromMinor: Int
-}
+/// Import existing Show struct from HomeView - no duplication needed
 
 /// Ticket data model for navigation and display
 struct TicketData: Identifiable, Codable {

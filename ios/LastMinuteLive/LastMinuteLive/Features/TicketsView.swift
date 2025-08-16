@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TicketsView: View {
   @EnvironmentObject var app: AppState
+  @EnvironmentObject var navigationCoordinator: NavigationCoordinator
   var body: some View {
     NavigationView {
       Group {

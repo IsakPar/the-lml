@@ -12,10 +12,10 @@ struct Show: Identifiable, Decodable {
 
 struct HomeView: View {
   @EnvironmentObject var app: AppState
+  @EnvironmentObject var navigationCoordinator: NavigationCoordinator
   @State private var shows: [Show] = []
   @State private var loading = true
   @State private var error: String? = nil
-  @State private var selected: Show? = nil
   
   var body: some View {
     NavigationView {
@@ -63,7 +63,10 @@ struct HomeView: View {
                   next: show.nextPerformance,
                   imageURL: URL(string: (show.posterUrl?.hasPrefix("http") == true ? show.posterUrl! : (app.api.baseURL.absoluteString + show.posterUrl!))),
                   priceFromMinor: show.priceFromMinor,
-                  onTap: { selected = show }
+                  onTap: { 
+                    print("[HomeView] 🎭 Show selected: \(show.title)")
+                    navigationCoordinator.presentSeatmap(for: show)
+                  }
                 )
                 .padding(.horizontal, 16)
               }
@@ -76,8 +79,15 @@ struct HomeView: View {
       .navigationTitle(" ")
       .navigationBarHidden(true)
     }
-    .fullScreenCover(item: $selected) { s in
-      SeatmapScreen(show: s).environmentObject(app)
+    .sheet(item: $navigationCoordinator.showsPresentedSheet) { sheet in
+      switch sheet {
+      case .seatmap(let show):
+        SeatmapScreen(show: show, navigationCoordinator: navigationCoordinator)
+          .environmentObject(app)
+      case .login:
+        LoginView()
+          .environmentObject(app)
+      }
     }
     .onAppear(perform: load)
   }
