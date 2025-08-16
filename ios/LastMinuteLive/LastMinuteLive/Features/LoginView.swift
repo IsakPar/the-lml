@@ -1,4 +1,5 @@
 import SwiftUI
+import AuthenticationServices
 
 struct LoginView: View {
   @EnvironmentObject var app: AppState
@@ -16,10 +17,10 @@ struct LoginView: View {
           .font(.footnote).foregroundColor(.secondary)
 
         // Federation buttons (Google/Passkey disabled until configured)
-        AppleSignInButton(onToken: { token in
-          Task { await signInWithApple(identityToken: token) }
-        }, onError: { err in self.message = err?.localizedDescription ?? "Apple sign-in cancelled" })
-          .frame(height: 48)
+        AppleSignInButton(onResult: { result in
+          Task { await handleAppleSignIn(result: result) }
+        })
+        .frame(height: 48)
         Button(action: {}) { Label("Sign in with Google", systemImage: "g.circle") }
           .buttonStyle(.stageBordered).disabled(true)
         Button(action: {}) { Label("Continue with Passkey", systemImage: "key.fill") }
@@ -54,44 +55,42 @@ struct LoginView: View {
       .background(StageKit.bgGradient.ignoresSafeArea())
     }
   }
+  // MARK: - Authentication Methods (Updated)
+  
   @MainActor
-  private func signInWithApple(identityToken: String) async {
-    do {
-      let payload = try JSONSerialization.data(withJSONObject: ["identityToken": identityToken])
-      let (resp, _) = try await app.api.request(path: "/v1/auth/apple", method: "POST", body: payload, headers: ["X-Org-ID": Config.defaultOrgId])
-      let obj = try JSONSerialization.jsonObject(with: resp) as? [String: Any]
-      if let t = obj?["access_token"] as? String { 
-        app.accessToken = t
-        app.api.accessToken = t
-        app.api.orgId = Config.defaultOrgId
-        app.isAuthenticated = true
-        app.verifierStartRefresh()
-        // Extract email from token payload if available
-        if let userInfo = obj?["user_info"] as? [String: Any],
-           let email = userInfo["email"] as? String {
-          app.userEmail = email
-          print("[Auth] Apple Sign In successful with email: \(email)")
-        } else {
-          print("[Auth] Apple Sign In successful but no email provided")
-        }
-      } else { message = "Unable to sign in with Apple" }
-    } catch { message = error.localizedDescription }
+  private func handleAppleSignIn(result: Result<ASAuthorization, Error>) async {
+    isLoading = true
+    message = nil
+    
+    let success = await app.handleAppleSignIn(result: result)
+    
+    if success {
+      print("[LoginView] ✅ Apple Sign In successful")
+    } else {
+      message = app.authenticationManager.lastError ?? "Apple Sign In failed"
+      print("[LoginView] ❌ Apple Sign In failed: \(message ?? "unknown error")")
+    }
+    
+    isLoading = false
   }
-  func login() {
-    isLoading = true; message = nil
-    Task { @MainActor in
-      do {
-        let payload = ["grant_type": "password", "username": username, "password": password]
-        let data = try JSONSerialization.data(withJSONObject: payload)
-        let (resp, _) = try await app.api.request(path: "/v1/oauth/token", method: "POST", body: data)
-        let obj = try JSONSerialization.jsonObject(with: resp) as? [String: Any]
-        if let t = obj?["access_token"] as? String { 
-          app.accessToken = t
-          app.isAuthenticated = true
-          app.userEmail = username.trimmingCharacters(in: .whitespacesAndNewlines)
-          print("[Auth] Manual login successful with email: \(app.userEmail ?? "nil")")
-        } else { message = "Invalid response" }
-      } catch { message = error.localizedDescription }
+  
+  @MainActor
+  private func login() {
+    isLoading = true
+    message = nil
+    
+    let email = username.trimmingCharacters(in: .whitespacesAndNewlines)
+    
+    Task {
+      let success = await app.authenticateWithEmail(email, password: password)
+      
+      if success {
+        print("[LoginView] ✅ Email authentication successful")
+      } else {
+        message = app.authenticationManager.lastError ?? "Login failed"
+        print("[LoginView] ❌ Email authentication failed: \(message ?? "unknown error")")
+      }
+      
       isLoading = false
     }
   }

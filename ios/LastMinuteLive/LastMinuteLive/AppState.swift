@@ -1,24 +1,68 @@
 import Foundation
 import SwiftUI
+import Combine
+import AuthenticationServices
 
 final class AppState: ObservableObject {
+  // MARK: - Legacy Properties (for backward compatibility)
   @Published var isAuthenticated: Bool = false
   @Published var userEmail: String? = nil
   @Published var accessToken: String? = nil {
     didSet {
       // Sync the access token with the ApiClient
       api.accessToken = accessToken
-      print("[Auth] Updated access token, orgId remains: \(api.orgId ?? "nil")")
+      print("[AppState] Updated access token, orgId remains: \(api.orgId ?? "nil")")
     }
   }
+  
+  // MARK: - New Authentication System
+  @Published var authenticationManager: AuthenticationManager
+  
+  // MARK: - Services
   let api = ApiClient(baseURL: Config.apiBaseURL, orgId: Config.defaultOrgId)
   lazy var verifier = VerifierService(api: api)
   let ticketsCache = TicketsCacheService()
   
+  private var cancellables = Set<AnyCancellable>()
+  
   init() {
     // Ensure orgId is set from the start
     api.orgId = Config.defaultOrgId
+    
+    // Initialize authentication manager
+    authenticationManager = AuthenticationManager(apiClient: api)
+    
     print("[AppState] Initialized with orgId: \(Config.defaultOrgId)")
+    
+    // Observe authentication state changes
+    setupAuthenticationObservers()
+  }
+  
+  // MARK: - Authentication State Synchronization
+  
+  private func setupAuthenticationObservers() {
+    // Sync authentication state between new and legacy systems
+    authenticationManager.$authenticationState
+      .receive(on: DispatchQueue.main)
+      .sink { [weak self] state in
+        self?.syncAuthenticationState(state)
+      }
+      .store(in: &cancellables)
+  }
+  
+  private func syncAuthenticationState(_ state: AuthenticationManager.AuthenticationState) {
+    switch state {
+    case .authenticated(let user):
+      isAuthenticated = true
+      userEmail = user.email
+      print("[AppState] ✅ Authentication synced: \(user.email)")
+      
+    case .unauthenticated, .expired:
+      isAuthenticated = false
+      userEmail = nil
+      accessToken = nil
+      print("[AppState] ❌ Authentication cleared")
+    }
   }
 
   func verifierStartRefresh() {
@@ -59,6 +103,26 @@ final class AppState: ObservableObject {
     } catch {
       print("[Auth] Development authentication error: \(error)")
     }
+  }
+  
+  // MARK: - New Authentication Methods
+  
+  /// Authenticate with email and password using new AuthenticationManager
+  @MainActor
+  func authenticateWithEmail(_ email: String, password: String) async -> Bool {
+    return await authenticationManager.authenticateWithEmail(email, password: password)
+  }
+  
+  /// Handle Apple Sign In using new AuthenticationManager  
+  @MainActor
+  func handleAppleSignIn(result: Result<ASAuthorization, Error>) async -> Bool {
+    return await authenticationManager.handleAppleSignIn(result: result)
+  }
+  
+  /// Logout user using new AuthenticationManager
+  @MainActor
+  func logout() async {
+    await authenticationManager.logout()
   }
 
   func cacheTicketFromToken(orgId: String, token: String) {

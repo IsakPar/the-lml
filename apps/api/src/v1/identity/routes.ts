@@ -34,10 +34,71 @@ export async function registerIdentityRoutes(app: FastifyInstance) {
       const userId = `usr_${Buffer.from(username).toString('hex').slice(0, 8)}`;
       const accessToken = jwt.signAccess({ sub: userId, userId, orgId: req.ctx.orgId, role: 'user', permissions: ['identity.me.read'] });
       const refreshToken = jwt.signRefresh({ sub: userId, userId, orgId: req.ctx.orgId, role: 'user', permissions: ['identity.me.read'] });
-      return reply.send({ access_token: accessToken, refresh_token: refreshToken, token_type: 'Bearer', expires_in: 900 });
+      
+      // Enhanced response for new AuthenticationManager
+      const response = {
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        token_type: 'Bearer',
+        expires_in: 900,
+        expires_at: new Date(Date.now() + 900 * 1000).toISOString(),
+        user_id: userId,
+        name: null, // TODO: Extract from user profile when available
+        created_at: new Date().toISOString(),
+        isVerified: true
+      };
+      
+      return reply.send(response);
     }
 
     return reply.code(400).type('application/problem+json').send(problem(400, 'unsupported_grant_type', 'Only client_credentials and password supported in MVP', 'urn:thankful:oauth:unsupported_grant', req.ctx?.traceId));
+  });
+
+  // Email/password login endpoint for new AuthenticationManager
+  app.post('/v1/auth/login', { preHandler: loginLimiter as any }, async (req: any, reply) => {
+    const { email, password, grant_type } = req.body || {};
+    
+    if (grant_type !== 'password') {
+      return reply.code(400).type('application/problem+json').send(
+        problem(400, 'invalid_request', 'grant_type must be "password"', 'urn:thankful:auth:invalid_grant_type', req.ctx?.traceId)
+      );
+    }
+    
+    if (!email || !password) {
+      return reply.code(400).type('application/problem+json').send(
+        problem(400, 'invalid_request', 'email and password are required', 'urn:thankful:auth:missing_credentials', req.ctx?.traceId)
+      );
+    }
+    
+    // TODO: Validate user credentials against database
+    // For now, accept any email/password for development
+    const userId = `usr_${Buffer.from(email).toString('hex').slice(0, 8)}`;
+    const accessToken = jwt.signAccess({ 
+      sub: userId, 
+      userId, 
+      orgId: req.ctx.orgId, 
+      role: 'user', 
+      permissions: ['identity.me.read'] 
+    });
+    const refreshToken = jwt.signRefresh({ 
+      sub: userId, 
+      userId, 
+      orgId: req.ctx.orgId, 
+      role: 'user', 
+      permissions: ['identity.me.read'] 
+    });
+    
+    const response = {
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
+      user_id: userId,
+      name: null,
+      created_at: new Date().toISOString(),
+      isVerified: true
+    };
+    
+    return reply.send(response);
   });
 
   // Current user

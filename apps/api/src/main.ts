@@ -10,6 +10,7 @@ import { registerInventoryRoutes } from './v1/inventory/routes.js';
 import { registerAvailabilityRoutes } from './v1/inventory/availability.js';
 import { registerIdentityRoutes } from './v1/identity/routes.js';
 import { registerAppleAuth } from './v1/identity/apple.js';
+import usersRoutes from './v1/users/routes.js';
 import { registerOrdersRoutes } from './v1/orders/routes.js';
 import { registerPaymentsRoutes } from './v1/payments/routes.js';
 import { registerVerificationRoutes } from './v1/verification/routes.js';
@@ -54,6 +55,7 @@ async function main() {
   await registerHealthRoutes(app);
   await registerIdentityRoutes(app);
   await registerAppleAuth(app);
+  await app.register(usersRoutes, { prefix: '/v1/users' });
 
   // Shared clients (can be moved to DI later)
   const mongo = new MongoClient(String(process.env.MONGODB_URL || 'mongodb://localhost:27017/thankful'));

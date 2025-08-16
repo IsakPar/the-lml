@@ -2,10 +2,30 @@ import SwiftUI
 import AuthenticationServices
 
 struct AppleSignInButton: UIViewRepresentable {
-  let onToken: (String) -> Void
-  let onError: (Error?) -> Void
+  // Legacy callbacks for backward compatibility
+  let onToken: ((String) -> Void)?
+  let onError: ((Error?) -> Void)?
+  
+  // New result-based callback for enhanced authentication
+  let onResult: ((Result<ASAuthorization, Error>) -> Void)?
 
-  func makeCoordinator() -> Coordinator { Coordinator(onToken: onToken, onError: onError) }
+  // Legacy initializer
+  init(onToken: @escaping (String) -> Void, onError: @escaping (Error?) -> Void) {
+    self.onToken = onToken
+    self.onError = onError
+    self.onResult = nil
+  }
+  
+  // New initializer with result callback
+  init(onResult: @escaping (Result<ASAuthorization, Error>) -> Void) {
+    self.onToken = nil
+    self.onError = nil
+    self.onResult = onResult
+  }
+
+  func makeCoordinator() -> Coordinator { 
+    Coordinator(onToken: onToken, onError: onError, onResult: onResult) 
+  }
 
   func makeUIView(context: Context) -> ASAuthorizationAppleIDButton {
     let btn = ASAuthorizationAppleIDButton(type: .signIn, style: .black)
@@ -17,9 +37,15 @@ struct AppleSignInButton: UIViewRepresentable {
   func updateUIView(_ uiView: ASAuthorizationAppleIDButton, context: Context) {}
 
   final class Coordinator: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
-    let onToken: (String) -> Void
-    let onError: (Error?) -> Void
-    init(onToken: @escaping (String) -> Void, onError: @escaping (Error?) -> Void) { self.onToken = onToken; self.onError = onError }
+    let onToken: ((String) -> Void)?
+    let onError: ((Error?) -> Void)?
+    let onResult: ((Result<ASAuthorization, Error>) -> Void)?
+    
+    init(onToken: ((String) -> Void)?, onError: ((Error?) -> Void)?, onResult: ((Result<ASAuthorization, Error>) -> Void)?) {
+      self.onToken = onToken
+      self.onError = onError
+      self.onResult = onResult
+    }
 
     @objc func handleTap() {
       let provider = ASAuthorizationAppleIDProvider()
@@ -36,16 +62,31 @@ struct AppleSignInButton: UIViewRepresentable {
     }
 
     func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
+      // New result-based callback (preferred)
+      if let onResult = onResult {
+        onResult(.success(authorization))
+        return
+      }
+      
+      // Legacy token-based callback (for backward compatibility)
       guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
             let tokenData = credential.identityToken,
             let token = String(data: tokenData, encoding: .utf8) else {
-        onError(nil); return
+        onError?(nil)
+        return
       }
-      onToken(token)
+      onToken?(token)
     }
 
     func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
-      onError(error)
+      // New result-based callback (preferred)
+      if let onResult = onResult {
+        onResult(.failure(error))
+        return
+      }
+      
+      // Legacy error callback (for backward compatibility)
+      onError?(error)
     }
   }
 }
