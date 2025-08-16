@@ -12,6 +12,7 @@ type CreateOrderRequest = {
   seat_ids: string[];
   currency?: string;
   total_minor?: number;
+  customer_email: string;
 };
 
 export async function registerOrdersRoutes(app: FastifyInstance) {
@@ -68,13 +69,20 @@ export async function registerOrdersRoutes(app: FastifyInstance) {
       return reply.code(422).type('application/problem+json').send(problem(422, 'invalid_idempotency_key', 'Idempotency-Key required', 'urn:thankful:idem:missing', req.ctx?.traceId));
     }
     const body = (req.body || {}) as CreateOrderRequest;
-    const { performance_id, seat_ids } = body;
+    const { performance_id, seat_ids, customer_email } = body;
     const currency = (body.currency || process.env.DEFAULT_CURRENCY || 'USD').toString();
 
     // Validation
     if (!performance_id || !seat_ids || !Array.isArray(seat_ids) || seat_ids.length === 0) {
       return reply.code(422).type('application/problem+json').send(
         problem(422, 'invalid_request', 'performance_id and seat_ids required', 'urn:thankful:orders:missing_fields', req.ctx?.traceId)
+      );
+    }
+
+    // Email validation
+    if (!customer_email || !customer_email.trim()) {
+      return reply.code(422).type('application/problem+json').send(
+        problem(422, 'invalid_request', 'customer_email is required', 'urn:thankful:orders:missing_email', req.ctx?.traceId)
       );
     }
 
@@ -99,8 +107,8 @@ export async function registerOrdersRoutes(app: FastifyInstance) {
 
           // Create order (using correct schema and column names)
           const orderResult = await client.query<{ id: string }>(
-            'INSERT INTO orders.orders (status, total_minor, currency) VALUES ($1, $2, $3) RETURNING id',
-            ['pending', totalMinor, currency]
+            'INSERT INTO orders.orders (status, total_minor, currency, customer_email) VALUES ($1, $2, $3, $4) RETURNING id',
+            ['pending', totalMinor, currency, customer_email.trim()]
           );
           orderId = orderResult.rows[0].id;
 
@@ -125,7 +133,8 @@ export async function registerOrdersRoutes(app: FastifyInstance) {
               order_id: orderId,
               performance_id,
               seat_count: seat_ids.length.toString(),
-              org_id: tenant
+              org_id: tenant,
+              customer_email: customer_email.trim()
             },
             automatic_payment_methods: {
               enabled: true,
@@ -136,7 +145,7 @@ export async function registerOrdersRoutes(app: FastifyInstance) {
 
           // Update order with PaymentIntent ID
           await client.query(
-            'UPDATE orders SET payment_intent_id = $1, updated_at = NOW() WHERE id = $2',
+            'UPDATE orders.orders SET payment_intent_id = $1, updated_at = NOW() WHERE id = $2',
             [paymentIntent.id, orderId]
           );
 

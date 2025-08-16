@@ -3,6 +3,7 @@ import SwiftUI
 
 final class AppState: ObservableObject {
   @Published var isAuthenticated: Bool = false
+  @Published var userEmail: String? = nil
   @Published var accessToken: String? = nil {
     didSet {
       // Sync the access token with the ApiClient
@@ -48,7 +49,9 @@ final class AppState: ObservableObject {
       if let token = response?["access_token"] as? String {
         self.accessToken = token
         self.isAuthenticated = true
-        print("[Auth] Development authentication successful")
+        // Set development email for testing
+        self.userEmail = "dev@lastminutelive.com"
+        print("[Auth] Development authentication successful with email: \(self.userEmail ?? "nil")")
       } else {
         print("[Auth] Development authentication failed - no token in response")
       }

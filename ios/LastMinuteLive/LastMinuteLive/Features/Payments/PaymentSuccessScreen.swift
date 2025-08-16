@@ -21,8 +21,7 @@ struct PaymentSuccessData {
 // MARK: - Clean Payment Success Screen
 struct PaymentSuccessScreen: View {
     let successData: PaymentSuccessData
-    let onDismiss: () -> Void
-    let onSeeMyTickets: () -> Void
+    let navigationCoordinator: NavigationCoordinator
     
     private var cleanTicketData: CleanTicketData {
         CleanTicketData(from: successData, seatNodes: successData.seatNodes)
@@ -59,8 +58,14 @@ struct PaymentSuccessScreen: View {
                     
                     // Simple Navigation
                     SimpleNavigation(
-                        onSeeMyTickets: onSeeMyTickets,
-                        onBackToShows: onDismiss // Fixed: Now goes to HomeView
+                        onSeeMyTickets: {
+                            print("[Success] 🎫 See My Tickets tapped - navigating to tickets tab")
+                            navigationCoordinator.navigateToTickets()
+                        },
+                        onBackToShows: {
+                            print("[Success] 🏠 Back to Shows tapped - navigating to shows tab")
+                            navigationCoordinator.navigateToShows()
+                        }
                     )
                     
                     // Bottom safe area

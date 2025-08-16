@@ -11,6 +11,7 @@ struct CreateOrderRequest: Codable {
   let seat_ids: [String]
   let currency: String
   let total_minor: Int
+  let customer_email: String
 }
 
 struct CreateOrderResponse: Codable {
@@ -30,6 +31,7 @@ private struct Tier {
 struct SeatmapScreen: View {
   @EnvironmentObject var app: AppState
   let show: Show
+  let navigationCoordinator: NavigationCoordinator
   @Environment(\.dismiss) private var dismiss
   @State private var model: SeatmapModel? = nil
   @State private var warnings: [String] = []
@@ -163,15 +165,16 @@ struct SeatmapScreen: View {
       ShoppingBasket(
         selectedSeats: selectedSeatNodes,
         pricePerSeat: pricePerSeat,
-        onCheckout: {
-          print("[ShoppingBasket] 🛒 Checkout button pressed with \(selectedSeats.count) seats")
-          createOrderAndPresentPaymentSheet()
+        onCheckout: { customerEmail in
+          print("[ShoppingBasket] 🛒 Checkout button pressed with \(selectedSeats.count) seats, email: \(customerEmail)")
+          createOrderAndPresentPaymentSheet(customerEmail: customerEmail)
         },
         onRemoveSeat: { seatId in
           withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
             _ = selectedSeats.remove(seatId)
           }
-        }
+        },
+        userEmail: app.userEmail
       )
       .padding(.bottom, 0)
     }
@@ -186,16 +189,7 @@ struct SeatmapScreen: View {
       if let successData = successData {
         PaymentSuccessScreen(
           successData: successData,
-          onDismiss: {
-            showSuccessScreen = false
-            // Navigate back to shows or stay on seatmap
-          },
-          onSeeMyTickets: {
-            showSuccessScreen = false
-            // TODO: Navigate to tickets tab in main app
-            print("[Success] See My Tickets tapped for order: \(successData.orderId)")
-            // This would typically trigger a navigation to the tickets tab
-          }
+          navigationCoordinator: navigationCoordinator
         )
       }
     }
@@ -482,10 +476,11 @@ struct SeatmapScreen: View {
   
   // MARK: - Direct PaymentSheet Integration
   
-  private func createOrderAndPresentPaymentSheet() {
+  private func createOrderAndPresentPaymentSheet(customerEmail: String) {
     print("[Checkout] 🚀 Starting checkout process...")
     print("[Checkout] Selected seats: \(Array(selectedSeats))")
     print("[Checkout] Performance ID: \(performanceId ?? "nil")")
+    print("[Checkout] Customer email: \(customerEmail)")
     
     guard !selectedSeats.isEmpty, let performanceId = performanceId else {
       print("[Checkout] ❌ ERROR: No seats selected or performance ID missing")
@@ -505,7 +500,8 @@ struct SeatmapScreen: View {
           performance_id: performanceId,
           seat_ids: Array(selectedSeats),
           currency: "GBP", 
-          total_minor: totalAmount
+          total_minor: totalAmount,
+          customer_email: customerEmail
         )
         
         print("[Checkout] 📤 Sending order request to API...")

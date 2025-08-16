@@ -60,8 +60,21 @@ struct LoginView: View {
       let payload = try JSONSerialization.data(withJSONObject: ["identityToken": identityToken])
       let (resp, _) = try await app.api.request(path: "/v1/auth/apple", method: "POST", body: payload, headers: ["X-Org-ID": Config.defaultOrgId])
       let obj = try JSONSerialization.jsonObject(with: resp) as? [String: Any]
-      if let t = obj?["access_token"] as? String { app.accessToken = t; app.api.accessToken = t; app.api.orgId = Config.defaultOrgId; app.isAuthenticated = true; app.verifierStartRefresh() }
-      else { message = "Unable to sign in with Apple" }
+      if let t = obj?["access_token"] as? String { 
+        app.accessToken = t
+        app.api.accessToken = t
+        app.api.orgId = Config.defaultOrgId
+        app.isAuthenticated = true
+        app.verifierStartRefresh()
+        // Extract email from token payload if available
+        if let userInfo = obj?["user_info"] as? [String: Any],
+           let email = userInfo["email"] as? String {
+          app.userEmail = email
+          print("[Auth] Apple Sign In successful with email: \(email)")
+        } else {
+          print("[Auth] Apple Sign In successful but no email provided")
+        }
+      } else { message = "Unable to sign in with Apple" }
     } catch { message = error.localizedDescription }
   }
   func login() {
@@ -72,7 +85,12 @@ struct LoginView: View {
         let data = try JSONSerialization.data(withJSONObject: payload)
         let (resp, _) = try await app.api.request(path: "/v1/oauth/token", method: "POST", body: data)
         let obj = try JSONSerialization.jsonObject(with: resp) as? [String: Any]
-        if let t = obj?["access_token"] as? String { app.accessToken = t; app.isAuthenticated = true } else { message = "Invalid response" }
+        if let t = obj?["access_token"] as? String { 
+          app.accessToken = t
+          app.isAuthenticated = true
+          app.userEmail = username.trimmingCharacters(in: .whitespacesAndNewlines)
+          print("[Auth] Manual login successful with email: \(app.userEmail ?? "nil")")
+        } else { message = "Invalid response" }
       } catch { message = error.localizedDescription }
       isLoading = false
     }

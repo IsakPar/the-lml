@@ -1,13 +1,18 @@
 import SwiftUI
 
 struct ShoppingBasket: View {
+  // MARK: - Properties
   let selectedSeats: [SeatNode]
   let pricePerSeat: Int // in minor units (pence)
-  let onCheckout: () -> Void
+  let onCheckout: (String) -> Void // Now passes email to checkout
   let onRemoveSeat: (String) -> Void
+  let userEmail: String? // Pre-fill email for logged-in users
   
+  // MARK: - State Management  
   @State private var isVisible = false
+  @State private var email: String = ""
   
+  // MARK: - Computed Properties
   private var totalPriceMinor: Int {
     selectedSeats.count * pricePerSeat
   }
@@ -22,6 +27,10 @@ struct ShoppingBasket: View {
     } else {
       return "\(selectedSeats.count) tickets selected"
     }
+  }
+  
+  private var isCheckoutEnabled: Bool {
+    !selectedSeats.isEmpty && EmailValidator.isValidForCheckout(email)
   }
   
   var body: some View {
@@ -85,6 +94,13 @@ struct ShoppingBasket: View {
             }
           }
           
+          // Email input field for receipt
+          EmailInputField(
+            email: $email,
+            prefillEmail: userEmail
+          )
+          .padding(.horizontal, 16)
+          
           // Total and checkout
           HStack {
             VStack(alignment: .leading, spacing: 4) {
@@ -112,7 +128,10 @@ struct ShoppingBasket: View {
           .padding(.horizontal, 16)
           
           // Proceed to Checkout button
-          Button(action: onCheckout) {
+          Button(action: {
+            let cleanEmail = EmailValidator.clean(email)
+            onCheckout(cleanEmail)
+          }) {
             HStack(spacing: 8) {
               Image(systemName: "creditcard.fill")
                 .font(.system(size: 16, weight: .medium))
@@ -120,13 +139,18 @@ struct ShoppingBasket: View {
                 .font(.headline)
                 .fontWeight(.semibold)
             }
-            .foregroundColor(.white)
+            .foregroundColor(isCheckoutEnabled ? .white : .white.opacity(0.5))
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
-            .background(StageKit.brandGradient)
+            .background(
+              isCheckoutEnabled ? 
+              AnyView(StageKit.brandGradient) : 
+              AnyView(Color.gray.opacity(0.3))
+            )
             .cornerRadius(16)
-            .shadow(color: StageKit.brandEnd.opacity(0.4), radius: 16, x: 0, y: 8)
+            .shadow(color: isCheckoutEnabled ? StageKit.brandEnd.opacity(0.4) : Color.clear, radius: 16, x: 0, y: 8)
           }
+          .disabled(!isCheckoutEnabled)
           .padding(.horizontal, 16)
         }
         .padding(.vertical, 16)
