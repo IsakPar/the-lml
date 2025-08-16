@@ -143,8 +143,7 @@ struct PaymentSuccessScreen_Previews: PreviewProvider {
                 paymentMethod: "Card",
                 purchaseDate: "Sep 15, 2025 at 2:45 PM"
             ),
-            onDismiss: { print("Back to Shows tapped") },
-            onSeeMyTickets: { print("See My Tickets tapped") }
+            navigationCoordinator: NavigationCoordinator()
         )
     }
 }
