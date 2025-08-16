@@ -42,15 +42,15 @@ final class TicketStorageService: ObservableObject {
         
         defer { isLoading = false }
         
-        guard let userId = keychainService.getUserId() else {
-            lastError = "No user ID available"
-            print("[TicketStorage] ❌ Cannot store ticket: no user ID")
-            return false
-        }
-        
         do {
+            // Get user ID if available, otherwise use email or anonymous identifier
+            let userId = keychainService.getUserId()
+            let identifier = userId ?? paymentSuccessData.customerEmail ?? "anonymous_\(UUID().uuidString)"
+            
+            print("[TicketStorage] 🎫 Using identifier: \(identifier) (authenticated: \(userId != nil))")
+            
             // Convert payment success data to ticket model
-            let ticketModel = createTicketModel(from: paymentSuccessData, userId: userId)
+            let ticketModel = createTicketModel(from: paymentSuccessData, userId: identifier)
             
             // Store in repository
             try await storeTicket(ticketModel)
@@ -58,7 +58,7 @@ final class TicketStorageService: ObservableObject {
             // Refresh tickets list
             await loadTicketsForCurrentUser()
             
-            print("[TicketStorage] ✅ Ticket stored successfully")
+            print("[TicketStorage] ✅ Ticket stored successfully for identifier: \(identifier)")
             return true
             
         } catch {
@@ -76,15 +76,53 @@ final class TicketStorageService: ObservableObject {
     
     // MARK: - Ticket Loading Operations
     
-    /// Load tickets for the currently authenticated user
+    /// Load tickets for the currently authenticated user (or anonymous tickets)
     func loadTicketsForCurrentUser() async {
-        guard let userId = keychainService.getUserId() else {
-            print("[TicketStorage] ⚠️ No user ID available, clearing tickets")
-            tickets = []
-            return
-        }
+        print("[TicketStorage] 📋 Loading tickets for current session...")
         
-        await loadTickets(for: userId)
+        isLoading = true
+        lastError = nil
+        defer { isLoading = false }
+        
+        var allTickets: [TicketDisplayModel] = []
+        
+        do {
+            // Strategy 1: Load tickets for authenticated user ID
+            if let userId = keychainService.getUserId() {
+                print("[TicketStorage] 👤 Loading authenticated user tickets for: \(userId)")
+                let userTickets = try await ticketRepository.fetchAll(for: userId)
+                allTickets.append(contentsOf: userTickets)
+                print("[TicketStorage] ✅ Loaded \(userTickets.count) authenticated tickets")
+            }
+            
+            // Strategy 2: Load tickets for current user email (anonymous or mismatched)
+            if let currentEmail = keychainService.getUserEmail() {
+                print("[TicketStorage] 📧 Loading email-based tickets for: \(currentEmail)")
+                let emailTickets = try await ticketRepository.fetchAll(for: currentEmail)
+                allTickets.append(contentsOf: emailTickets)
+                print("[TicketStorage] ✅ Loaded \(emailTickets.count) email-based tickets")
+            }
+            
+            // Remove duplicates based on order ID
+            let uniqueTickets = Dictionary(grouping: allTickets, by: { $0.orderId })
+                .compactMapValues { $0.first }
+                .values
+                .sorted { ticket1, ticket2 in
+                    // Sort by event date (upcoming first), then by purchase date (newest first)
+                    if ticket1.eventDate != ticket2.eventDate {
+                        return ticket1.eventDate > ticket2.eventDate
+                    }
+                    return ticket1.purchaseDate > ticket2.purchaseDate
+                }
+            
+            tickets = Array(uniqueTickets)
+            print("[TicketStorage] 🎫 Total unique tickets loaded: \(tickets.count)")
+            
+        } catch {
+            lastError = error.localizedDescription
+            print("[TicketStorage] ❌ Failed to load tickets: \(error)")
+            tickets = []
+        }
     }
     
     /// Load tickets for a specific user

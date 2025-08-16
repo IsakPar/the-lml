@@ -121,7 +121,16 @@ final class AppState: ObservableObject {
         self.isAuthenticated = true
         // Set development email for testing
         self.userEmail = "dev@lastminutelive.com"
-        print("[Auth] Development authentication successful with email: \(self.userEmail ?? "nil")")
+        
+        // 🔧 CRITICAL: Store development user ID in keychain
+        let developmentUserId = "dev_user_\(UUID().uuidString)"
+        KeychainService().storeUserId(developmentUserId)
+        KeychainService().storeUserEmail("dev@lastminutelive.com")
+        
+        print("[Auth] ✅ Development authentication successful:")
+        print("[Auth] - Email: \(self.userEmail ?? "nil")")  
+        print("[Auth] - UserID stored: \(developmentUserId)")
+        print("[Auth] - UserID retrieved: \(KeychainService().getUserId() ?? "nil")")
       } else {
         print("[Auth] Development authentication failed - no token in response")
       }

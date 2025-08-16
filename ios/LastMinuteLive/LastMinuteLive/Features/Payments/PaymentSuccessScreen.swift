@@ -98,6 +98,10 @@ struct PaymentSuccessScreen: View {
         guard !ticketStorageComplete else { return }
         
         print("[PaymentSuccess] 🎫 Storing ticket for order: \(successData.orderId)")
+        print("[PaymentSuccess] 🔍 Debug info:")
+        print("[PaymentSuccess] - Customer email: \(successData.customerEmail ?? "nil")")
+        print("[PaymentSuccess] - App authenticated: \(app.isAuthenticated)")
+        print("[PaymentSuccess] - App userEmail: \(app.userEmail ?? "nil")")
         
         // Use the shared ticket storage service from AppState
         guard let sharedTicketService = app.ticketStorageService else {
@@ -110,8 +114,12 @@ struct PaymentSuccessScreen: View {
         if success {
             ticketStorageComplete = true
             print("[PaymentSuccess] ✅ Ticket stored successfully in shared service")
+            print("[PaymentSuccess] 📊 Tickets in service: \(sharedTicketService.tickets.count)")
         } else {
             print("[PaymentSuccess] ❌ Failed to store ticket")
+            if let error = sharedTicketService.lastError {
+                print("[PaymentSuccess] Error details: \(error)")
+            }
         }
     }
     
