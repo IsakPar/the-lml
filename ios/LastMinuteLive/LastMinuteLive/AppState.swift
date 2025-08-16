@@ -18,6 +18,9 @@ final class AppState: ObservableObject {
   // MARK: - New Authentication System
   @Published var authenticationManager: AuthenticationManager
   
+  // MARK: - Ticket Storage
+  @Published var ticketStorageService: TicketStorageService?
+  
   // MARK: - Services
   let api = ApiClient(baseURL: Config.apiBaseURL, orgId: Config.defaultOrgId)
   lazy var verifier = VerifierService(api: api)
@@ -31,6 +34,9 @@ final class AppState: ObservableObject {
     
     // Initialize authentication manager
     authenticationManager = AuthenticationManager(apiClient: api)
+    
+    // Initialize ticket storage service
+    ticketStorageService = TicketStorageService(authenticationManager: authenticationManager)
     
     print("[AppState] Initialized with orgId: \(Config.defaultOrgId)")
     
