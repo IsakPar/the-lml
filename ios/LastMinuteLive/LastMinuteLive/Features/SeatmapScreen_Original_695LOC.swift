@@ -67,7 +67,8 @@ struct SeatmapScreenOriginal: View {
           
           // Legend - show unique section colors from seatmap
           if let model = model, !model.seats.isEmpty {
-            SectionLegendBar(seats: model.seats)
+            let priceTiersForLegend = tiers.map { PriceTier(code: $0.code, name: $0.name, amountMinor: $0.amountMinor, color: $0.color) }
+            SectionLegendBar(seats: model.seats, priceTiers: priceTiersForLegend)
           } else if !tiers.isEmpty {
             LegendBar(tiers: Dictionary(uniqueKeysWithValues: tiers.map { ($0.code, $0.amountMinor) }))
           }

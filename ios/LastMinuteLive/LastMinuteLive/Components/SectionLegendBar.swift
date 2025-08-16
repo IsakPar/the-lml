@@ -9,6 +9,7 @@ struct SectionInfo {
 
 struct SectionLegendBar: View {
   let seats: [SeatNode]
+  let priceTiers: [PriceTier]
   
   var uniqueSections: [SectionInfo] {
     // Group seats by section name and extract unique section info  
@@ -58,9 +59,19 @@ struct SectionLegendBar: View {
                   .foregroundColor(.white.opacity(0.9))
                   .lineLimit(1)
                 
-                Text("\(section.seatCount) seats")
-                  .font(.caption2)
-                  .foregroundColor(.white.opacity(0.6))
+                HStack(spacing: 2) {
+                  Text("\(section.seatCount) seats")
+                    .font(.caption2)
+                    .foregroundColor(.white.opacity(0.6))
+                  
+                  Text("•")
+                    .font(.caption2)
+                    .foregroundColor(.white.opacity(0.4))
+                  
+                  Text(formatPrice(for: section.priceTier))
+                    .font(.caption2.weight(.semibold))
+                    .foregroundColor(.white.opacity(0.8))
+                }
               }
             }
             .padding(.horizontal, 8)
@@ -92,6 +103,14 @@ struct SectionLegendBar: View {
         )
     )
     .padding(.horizontal, 12)
+  }
+  
+  // ✅ NEW: Helper function to get price for a section's tier
+  private func formatPrice(for tierCode: String) -> String {
+    guard let priceTier = priceTiers.first(where: { $0.code == tierCode }) else {
+      return "£--"
+    }
+    return "£" + String(format: "%.0f", Double(priceTier.amountMinor) / 100.0)
   }
 }
 

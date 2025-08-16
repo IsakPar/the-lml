@@ -1,5 +1,6 @@
 import SwiftUI
 import StripePaymentSheet
+import PassKit
 import MapKit
 
 /// Clean, modular seatmap screen following DDD principles
@@ -107,10 +108,18 @@ struct SeatmapScreen: View {
     // MARK: - Business Logic (Minimal - Delegates to Services)
     
     private func setupServices() {
-        seatHoldService = SeatHoldService(apiClient: app.api)
-        
         Task {
+            // ✅ CRITICAL FIX: Authenticate FIRST, then create services
             await app.authenticateForDevelopment()
+            print("[SeatmapScreen] 🔐 Authentication completed")
+            
+            // Now create SeatHoldService with authenticated API client
+            await MainActor.run {
+                seatHoldService = SeatHoldService(apiClient: app.api)
+                print("[SeatmapScreen] 🎫 SeatHoldService created with authenticated API client")
+            }
+            
+            // Finally load seatmap data
             await seatmapService.loadSeatmapData(for: show)
         }
     }
@@ -233,6 +242,17 @@ struct SeatmapScreen: View {
             configuration.merchantDisplayName = "LastMinuteLive"
             configuration.allowsDelayedPaymentMethods = false
             
+            // ✅ RESTORED: Add Apple Pay configuration if available
+            if PKPaymentAuthorizationViewController.canMakePayments() {
+                print("[SeatmapScreen] 🍎 Apple Pay is available, adding to configuration")
+                configuration.applePay = .init(
+                    merchantId: Config.merchantIdentifier,
+                    merchantCountryCode: Config.countryCode
+                )
+            } else {
+                print("[SeatmapScreen] ⚠️ Apple Pay not available on this device")
+            }
+            
             paymentSheet = PaymentSheet(
                 paymentIntentClientSecret: orderResponse.client_secret,
                 configuration: configuration
@@ -342,7 +362,7 @@ private struct HeaderSection: View {
             
             // Legend
             if let model = seatmapModel, !model.seats.isEmpty {
-                SectionLegendBar(seats: model.seats)
+                SectionLegendBar(seats: model.seats, priceTiers: priceTiers)
             } else if !priceTiers.isEmpty {
                 let tierDict = Dictionary(uniqueKeysWithValues: priceTiers.map { ($0.code, $0.amountMinor) })
                 LegendBar(tiers: tierDict)

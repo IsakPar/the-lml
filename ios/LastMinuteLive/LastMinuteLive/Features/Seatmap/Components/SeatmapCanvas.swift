@@ -122,6 +122,7 @@ private struct SeatView: View {
             }
         }) {
             SeatShape(
+                seat: seat,
                 width: width,
                 height: height,
                 isLargeBlock: isLargeBlock,
@@ -135,6 +136,7 @@ private struct SeatView: View {
 }
 
 private struct SeatShape: View {
+    let seat: SeatNode
     let width: CGFloat
     let height: CGFloat
     let isLargeBlock: Bool
@@ -185,19 +187,47 @@ private struct SeatShape: View {
     }
     
     private var fillColor: Color {
-        switch availability {
-        case .available:
-            if isSelected {
-                return StageKit.brandEnd
-            } else {
-                return StageKit.success.opacity(0.7)
-            }
-        case .held:
-            return Color.yellow.opacity(0.6)
-        case .sold:
-            return Color.red.opacity(0.4)
-        case .blocked:
-            return Color.gray.opacity(0.3)
+        // ✅ RESTORED: Proper 4-tier color priority system from original
+        
+        // PRIORITY 1: Selected seats = WHITE
+        if isSelected {
+            return Color.white
+        }
+        
+        // PRIORITY 2: Reserved/booked seats = GREY
+        if !availability.canBeSelected() {
+            return Color.gray.opacity(0.7)
+        }
+        
+        // PRIORITY 3: Available seats = PostgreSQL color (seat.colorHex)
+        if let colorHex = seat.colorHex, !colorHex.isEmpty {
+            return Color(hex: colorHex).opacity(0.85)
+        }
+        
+        // PRIORITY 4: Fallback = Price tier colors
+        guard let priceTier = seat.priceLevelId else {
+            return fillColorForTier("standard").opacity(0.8)
+        }
+        return fillColorForTier(priceTier).opacity(0.85)
+    }
+    
+    // ✅ RESTORED: Price tier color mapping from original
+    private func fillColorForTier(_ tierCode: String) -> Color {
+        switch tierCode {
+        case "premium": 
+            return Color(.sRGB, red: 0.7, green: 0.5, blue: 0.9, opacity: 1.0)
+        case "standard": 
+            return Color(.sRGB, red: 0.4, green: 0.6, blue: 0.9, opacity: 1.0)
+        case "elevated_premium": 
+            return Color(.sRGB, red: 0.2, green: 0.7, blue: 0.6, opacity: 1.0)
+        case "elevated_standard": 
+            return Color(.sRGB, red: 0.9, green: 0.7, blue: 0.3, opacity: 1.0)
+        case "budget": 
+            return Color(.sRGB, red: 0.8, green: 0.4, blue: 0.4, opacity: 1.0)
+        case "restricted": 
+            return Color(.sRGB, red: 0.5, green: 0.5, blue: 0.5, opacity: 1.0)
+        default:
+            return Color(.sRGB, red: 0.6, green: 0.6, blue: 0.6, opacity: 1.0)
         }
     }
 }
@@ -221,5 +251,23 @@ private struct StageView: View {
                 .offset(y: -20)
         }
         .position(x: canvasSize.width / 2, y: 24)
+    }
+}
+
+// ✅ RESTORED: Color hex parsing extension from SectionLegendBar
+private extension Color {
+    init(hex: String) {
+        let s = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#")).lowercased()
+        var v: UInt64 = 0
+        Scanner(string: s).scanHexInt64(&v)
+        let r, g, b: Double
+        if s.count == 6 {
+            r = Double((v >> 16) & 0xff) / 255.0
+            g = Double((v >> 8) & 0xff) / 255.0
+            b = Double(v & 0xff) / 255.0
+        } else {
+            r = 0.6; g = 0.6; b = 0.6
+        }
+        self = Color(red: r, green: g, blue: b)
     }
 }
