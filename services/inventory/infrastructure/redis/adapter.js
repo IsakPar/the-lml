@@ -40,7 +40,7 @@ export class RedisSeatLockAdapter {
         for (const [name, script] of entries) {
             const sha = await this.client.scriptLoad(script).catch(async (err) => {
                 // SCRIPT LOAD might fail if scripts are disabled; fallback to eval later
-                metrics.lua_error.inc();
+                metrics.seat_lock_lua_errors_total.inc();
                 throw err;
             });
             this.shaByName[name] = sha;
@@ -56,7 +56,7 @@ export class RedisSeatLockAdapter {
             try {
                 const elapsed = performance.now() - start;
                 if (elapsed > 150) {
-                    metrics.redis_timeout.inc();
+                    metrics.seat_lock_redis_timeouts_total.inc();
                     throw new Error('redis_timeout_overall');
                 }
                 // Per-call budget ~50ms
@@ -68,7 +68,7 @@ export class RedisSeatLockAdapter {
                     });
                     const callElapsed = performance.now() - callStart;
                     if (callElapsed > 50) {
-                        metrics.redis_timeout.inc();
+                        metrics.seat_lock_redis_timeouts_total.inc();
                     }
                     return res;
                 }
@@ -99,7 +99,7 @@ export class RedisSeatLockAdapter {
                 lastErr = e;
             }
         }
-        metrics.lua_error.inc();
+        metrics.seat_lock_lua_errors_total.inc();
         throw lastErr;
     }
     async acquireAllOrNone(keys, owner, version, ttlMs, nowMs) {
@@ -121,10 +121,10 @@ export class RedisSeatLockAdapter {
         catch { }
         if (Array.isArray(result) && result[0] === 'CONFLICT') {
             const conflictKeys = result.slice(1).map(String);
-            metrics.acquire_conflict.inc();
+            metrics.seat_lock_acquire_conflict_total.inc();
             return { conflictKeys };
         }
-        metrics.acquire_ok.inc();
+        metrics.seat_lock_acquire_ok_total.inc();
         return { ok: true };
     }
     async extendIfOwner(key, owner, version, ttlMs, nowMs) {
@@ -136,7 +136,7 @@ export class RedisSeatLockAdapter {
         // eslint-disable-next-line no-console
         console.log(JSON.stringify({ event: 'locks.extend', durMs: Math.round(dur) }));
         if (res === 'OK')
-            metrics.extend_ok.inc();
+            metrics.seat_lock_extend_ok_total.inc();
         return res;
     }
     async releaseIfOwner(key, owner, version) {
@@ -148,7 +148,7 @@ export class RedisSeatLockAdapter {
         // eslint-disable-next-line no-console
         console.log(JSON.stringify({ event: 'locks.release', durMs: Math.round(dur) }));
         if (res === 'OK')
-            metrics.release_ok.inc();
+            metrics.seat_lock_release_ok_total.inc();
         return res;
     }
     async rollbackIfOwner(key, owner, version) {
@@ -160,7 +160,7 @@ export class RedisSeatLockAdapter {
         // eslint-disable-next-line no-console
         console.log(JSON.stringify({ event: 'locks.rollback', durMs: Math.round(dur) }));
         if (res === 'OK')
-            metrics.rollback_ok.inc();
+            metrics.seat_lock_rollback_ok_total.inc();
         return res;
     }
 }

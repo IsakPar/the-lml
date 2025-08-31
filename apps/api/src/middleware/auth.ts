@@ -25,6 +25,8 @@ export function registerAuth(app: FastifyInstance) {
     // Allow unauthenticated for a small set (token issuance etc.)
     const publicWhitelist = new Set<string>([
       'POST /v1/oauth/token',
+      'POST /v1/auth/login', // ✅ FIXED: Allow login endpoint without Bearer token
+      'POST /v1/auth/apple',  // ✅ FIXED: Allow Apple Sign In endpoint
       'GET /v1/health',
       'GET /v1/status',
       'GET /v1/time',
@@ -37,6 +39,11 @@ export function registerAuth(app: FastifyInstance) {
     // Public read for show listings and seatmaps (MVP):
     if (req.method === 'GET' && (cleanUrl === '/v1/shows' || cleanUrl.startsWith('/v1/shows/'))) return;
     if (req.method === 'GET' && (cleanUrl.startsWith('/v1/seatmaps/'))) return;
+    // Guest-friendly endpoints for MVP checkout flow:
+    // - Allow creating orders as guest (input validation + rate limits enforced in route)
+    if (req.method === 'POST' && cleanUrl === '/v1/orders') return;
+    // - Allow hold operations for guest flows; route handlers still enforce idempotency and preconditions
+    if ((req.method === 'POST' || req.method === 'PATCH' || req.method === 'DELETE') && cleanUrl.startsWith('/v1/holds')) return;
 
     const token = extractBearer(req.headers.authorization as string | undefined);
     if (!token) {

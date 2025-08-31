@@ -27,6 +27,12 @@ struct PaymentSuccessScreen: View {
     @EnvironmentObject var app: AppState
     @State private var ticketStorageComplete = false
     
+    // 🚨 NEW: State for guest ticket access modal
+    @State private var showingTicketAccessModal = false
+    // 🚨 NEW: Order fetch state + toast message
+    @State private var isFetchingOrder = false
+    @State private var toastMessage: String? = nil
+    
     init(successData: PaymentSuccessData, navigationCoordinator: NavigationCoordinator) {
         self.successData = successData
         self.navigationCoordinator = navigationCoordinator
@@ -68,8 +74,7 @@ struct PaymentSuccessScreen: View {
                     // Simple Navigation
                     SimpleNavigation(
                         onSeeMyTickets: {
-                            print("[Success] 🎫 See My Tickets tapped - navigating to tickets tab")
-                            navigationCoordinator.navigateToTickets()
+                            handleSeeMyTickets()
                         },
                         onBackToShows: {
                             print("[Success] 🏠 Back to Shows tapped - navigating to shows tab")
@@ -83,10 +88,44 @@ struct PaymentSuccessScreen: View {
             }
         }
         .navigationBarHidden(true)
+        .overlay {
+            // 🚨 NEW: Ticket Access Modal for guest users
+            if showingTicketAccessModal {
+                TicketAccessModal(
+                    customerEmail: successData.customerEmail,
+                    ticketData: cleanTicketData,
+                    onLoginAccount: {
+                        print("[Success] 🔐 User chose to log in/create account")
+                        showingTicketAccessModal = false
+                        // Present login flow
+                        navigationCoordinator.presentLogin()
+                    },
+                    onDownloadTickets: {
+                        print("[Success] 📥 User chose to download tickets")
+                        showingTicketAccessModal = false
+                        handleDownloadTickets()
+                    },
+                    onDismiss: {
+                        print("[Success] ❌ User dismissed ticket access modal")
+                        showingTicketAccessModal = false
+                    }
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showingTicketAccessModal)
+            }
+        }
+        .overlay(alignment: .top) {
+            if let message = toastMessage {
+                ToastView(message: message)
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
         .onAppear {
             // Automatically store ticket when success screen appears
             Task {
                 await storeTicketFromPayment()
+                await fetchOrderTickets()
             }
         }
     }
@@ -115,15 +154,55 @@ struct PaymentSuccessScreen: View {
             ticketStorageComplete = true
             print("[PaymentSuccess] ✅ Ticket stored successfully in shared service")
             print("[PaymentSuccess] 📊 Tickets in service: \(sharedTicketService.tickets.count)")
+            await showToast("Ticket saved locally")
         } else {
             print("[PaymentSuccess] ❌ Failed to store ticket")
             if let error = sharedTicketService.lastError {
                 print("[PaymentSuccess] Error details: \(error)")
+                await showToast("Failed to save ticket: \(error)")
             }
         }
     }
     
     // MARK: - Action Handlers
+    
+    /// 🚨 NEW: Handle "See My Tickets" tap with proper guest user flow
+    private func handleSeeMyTickets() {
+        print("[Success] 🎫 See My Tickets tapped")
+        print("[Success] 🔍 User authenticated: \(app.isAuthenticated)")
+        
+        if app.isAuthenticated {
+            // User is logged in - navigate directly to tickets
+            print("[Success] ✅ User authenticated - navigating to tickets tab")
+            navigationCoordinator.navigateToTickets()
+        } else {
+            // Guest user - show modal with options
+            print("[Success] 👤 Guest user - showing ticket access modal")
+            showingTicketAccessModal = true
+        }
+    }
+    
+    /// Handle ticket download for guest users
+    private func handleDownloadTickets() {
+        print("[Success] 📥 Starting ticket download for guest user")
+        
+        // Use the download service to handle ticket download
+        TicketDownloadService.downloadTicketsForGuest(ticketData: cleanTicketData)
+        
+        // Show email app if available
+        if let email = successData.customerEmail {
+            print("[Success] ✉️ Opening email for: \(email)")
+            TicketDownloadService.openEmailApp(
+                to: email, 
+                subject: "Your \(successData.performanceName) Tickets"
+            )
+        }
+        
+        // Navigate back to shows after a brief delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            self.navigationCoordinator.navigateToShows()
+        }
+    }
     
     private func handleAddToWallet() {
         print("[Success] 🏦 Add to Wallet tapped for order: \(successData.orderId)")
@@ -167,6 +246,41 @@ struct PaymentSuccessScreen: View {
         // Extract just the date part: "Sept 15, 2025 • 7:30 PM" -> "Sept 15"
         let cleanDate = DataFormatters.formatPerformanceDateTime(dateString)
         return cleanDate.components(separatedBy: " • ").first ?? dateString
+    }
+
+    // MARK: - Server-backed Tickets Fetch
+    private func fetchOrderTickets() async {
+        guard !isFetchingOrder else { return }
+        isFetchingOrder = true
+        defer { isFetchingOrder = false }
+        do {
+            let path = "/v1/orders/" + successData.orderId
+            let (data, _) = try await app.api.request(path: path, method: "GET")
+            let order = try JSONDecoder().decode(OrderDetailsResponse.self, from: data)
+            let count = order.tickets?.count ?? 0
+            if count > 0 {
+                await showToast("Tickets issued: \(count)")
+            } else {
+                await showToast("Tickets not ready yet. Pull to refresh later.")
+            }
+        } catch let apiError as ApiError {
+            switch apiError {
+            case .problem(let prob):
+                await showToast(prob.title)
+            case .network(let msg):
+                await showToast("Network error: \(msg)")
+            }
+        } catch {
+            await showToast("Unexpected error fetching order")
+        }
+    }
+    
+    @MainActor
+    private func showToast(_ message: String) async {
+        withAnimation { toastMessage = message }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            withAnimation { toastMessage = nil }
+        }
     }
 }
 

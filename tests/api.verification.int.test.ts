@@ -59,11 +59,13 @@ describe('Verification API', () => {
   it('rejects tampered signature', async () => {
     const tkn = await issueTicket(tokenFor(['tickets.issue']));
     const parts = tkn.split('.');
-    // Flip last character of signature to ensure invalid but still base64url
-    const sig = parts[3];
-    const last = sig[sig.length - 1];
-    const flipped = last === '-' ? '_' : '-';
-    parts[3] = sig.slice(0, -1) + flipped;
+    // Tamper payload bytes so signature verification must fail
+    const payloadB64 = parts[4];
+    const json = Buffer.from(payloadB64, 'base64url').toString('utf8');
+    const obj = JSON.parse(json);
+    obj.seat_id = 'B-999';
+    const tamperedPayload = Buffer.from(JSON.stringify(obj)).toString('base64url');
+    parts[4] = tamperedPayload;
     const bad = parts.join('.');
     const r = await supertest(server)
       .post('/v1/verification/redeem')
