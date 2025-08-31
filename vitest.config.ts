@@ -5,7 +5,17 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts', 'tests/**/*.int.test.ts'],
-    pool: 'forks'
+    pool: 'forks',
+    coverage: {
+      provider: 'v8',
+      all: true,
+      reportsDirectory: './coverage',
+      reporter: ['text', 'lcov'],
+      statements: 50,
+      branches: 50,
+      functions: 50,
+      lines: 50
+    }
   },
   resolve: {
     alias: {

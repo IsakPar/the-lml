@@ -1,16 +1,75 @@
 # CI skeleton
-name: ci
-on: [push, pull_request]
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
 jobs:
-  lint_typecheck:
+  build-and-test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: thankful
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand({ ping: 1 })' || exit 1" --health-interval 10s --health-timeout 5s --health-retries 5
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '20', cache: 'pnpm' }
-      - run: corepack enable
-      - run: pnpm -v
-      - run: pnpm -w install
-      - run: pnpm -w lint
-      - run: pnpm -w build
-      - run: pnpm -w typecheck
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm -w lint
+
+      - name: Build
+        run: pnpm -w build
+
+      - name: Typecheck
+        run: pnpm -w typecheck
+
+      - name: Run tests (with coverage)
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/thankful
+          REDIS_URL: redis://localhost:6379
+        run: pnpm -w test
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage

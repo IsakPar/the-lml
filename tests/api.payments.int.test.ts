@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { randomUUID } from 'node:crypto';
 import Fastify from 'fastify';
 import supertest from 'supertest';
 import { registerRequestContext } from '../apps/api/src/middleware/requestContext.js';
@@ -37,7 +38,7 @@ describe('Payments API (intent + webhook)', () => {
   it('creates payment intent idempotently and marks order paid via webhook', async () => {
     // Create an order first
     // Acquire a hold for a dummy seat so order creation can succeed
-    const perfId = '33333333-3333-3333-3333-333333333333';
+    const perfId = randomUUID();
     const seatId = 'S1';
     const db = getDatabase();
     await db.withTenant(tenant, async (c: any) => {

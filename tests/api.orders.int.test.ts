@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { randomUUID } from 'node:crypto';
 import Fastify from 'fastify';
 import { registerRequestContext } from '../apps/api/src/middleware/requestContext.js';
 import { registerProblemHandler } from '../apps/api/src/middleware/problem.js';
@@ -36,7 +37,7 @@ describe('Orders API (idempotency + tenant)', () => {
     const access = jwt.signAccess({ sub: 'usr_test', userId: 'usr_test', orgId: '00000000-0000-0000-0000-000000000001', role: 'user', permissions: ['orders.write','inventory.holds:write'] });
     const token = 'Bearer ' + access;
     const tenant = '00000000-0000-0000-0000-000000000001';
-    const perfId = '11111111-1111-1111-1111-111111111111';
+    const perfId = randomUUID();
     const seatId = 'S1';
     // Ensure seat exists as available in DB
     const db = getDatabase();
@@ -82,7 +83,7 @@ describe('Orders API (idempotency + tenant)', () => {
     const access = jwt.signAccess({ sub: 'usr_test', userId: 'usr_test', orgId: '00000000-0000-0000-0000-000000000001', role: 'user', permissions: ['orders.write','inventory.holds:write'] });
     const token = 'Bearer ' + access;
     const tenant = '00000000-0000-0000-0000-000000000001';
-    const perfId = '22222222-2222-2222-2222-222222222222';
+    const perfId = randomUUID();
     const seatId = 'A1';
     // Ensure seat exists as available in DB
     const db = getDatabase();
