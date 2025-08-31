@@ -6,7 +6,8 @@ import { createClient as createRedisClient } from 'redis';
 import { createIdemStore } from '../../../../../packages/idempotency/src/store.js';
 import { canonicalHash } from '../../../../../packages/idempotency/src/index.js';
 import Stripe from 'stripe';
-import { seatKey } from '../../../../../services/inventory/infrastructure/redis/adapter.js';
+import { VerifySeatHoldsUseCase } from '../../../../../services/inventory/application/usecases/VerifySeatHolds.js';
+import { RedisSeatHoldReader } from '../../../../../services/inventory/infrastructure/services/RedisSeatHoldReader.js';
 import { trace } from '@opentelemetry/api';
 
 type CreateOrderRequest = {
@@ -114,50 +115,32 @@ export async function registerOrdersRoutes(app: FastifyInstance) {
       return reply.code(begin.status).send({ cached: true });
     }
 
-    // Verify seats are held by this actor/session using Redis fencing token
+    // Verify seats are held by this actor/session using Redis via application use case
+    const holdTokenHeader = (req.headers['x-seat-hold-token'] as string | undefined) || '';
+    if (!holdTokenHeader || !holdTokenHeader.includes(':')) {
+      span.setAttribute('orders.hold.verify', 'missing_token');
+      return reply.code(412).type('application/problem+json').send(
+        problem(412, 'precondition_required', 'Missing or invalid seat hold token', 'urn:thankful:orders:missing_hold_token', req.ctx?.traceId)
+      );
+    }
     try {
-      const redis = createRedisClient({ url: String(process.env.REDIS_URL || 'redis://localhost:6379') });
-      await redis.connect();
-      const tenantId = String(req.ctx.orgId || '');
-      const holdTokenHeader = (req.headers['x-seat-hold-token'] as string | undefined) || '';
-      if (!holdTokenHeader || !holdTokenHeader.includes(':')) {
-        await redis.quit();
-        span.setAttribute('orders.hold.verify', 'missing_token');
-        return reply.code(412).type('application/problem+json').send(
-          problem(412, 'precondition_required', 'Missing or invalid seat hold token', 'urn:thankful:orders:missing_hold_token', req.ctx?.traceId)
-        );
-      }
-      const [versionStr, owner] = holdTokenHeader.split(':');
-      const versionNum = Number(versionStr);
-      if (!Number.isFinite(versionNum) || !owner) {
-        await redis.quit();
+      const reader = new RedisSeatHoldReader(String(process.env.REDIS_URL || 'redis://localhost:6379'));
+      const verifier = new VerifySeatHoldsUseCase(reader);
+      const res = await verifier.execute({ tenantId: String(req.ctx.orgId || ''), performanceId: performance_id, seatIds: seat_ids, holdToken: holdTokenHeader });
+      if (res.ok === false && 'reason' in res && res.reason === 'invalid_token') {
         span.setAttribute('orders.hold.verify', 'invalid_token');
         return reply.code(412).type('application/problem+json').send(
           problem(412, 'precondition_required', 'Invalid hold token format', 'urn:thankful:orders:invalid_hold_token', req.ctx?.traceId)
         );
       }
-      // Validate each seat is currently held by the same owner and version
-      const conflicts: string[] = [];
-      for (const seatId of seat_ids) {
-        const key = seatKey(tenantId, performance_id, seatId);
-        const val = await redis.get(key);
-        if (!val) { conflicts.push(seatId); continue; }
-        const idx = val.indexOf(':');
-        const vStr = idx >= 0 ? val.slice(0, idx) : '';
-        const oStr = idx >= 0 ? val.slice(idx + 1) : '';
-        const vNum = Number(vStr);
-        if (!Number.isFinite(vNum) || oStr !== owner) { conflicts.push(seatId); continue; }
-      }
-      await redis.quit();
-      if (conflicts.length > 0) {
-        span.setAttribute('orders.hold.conflicts', conflicts.join(','));
+      if (res.ok === false && 'conflicts' in res && res.conflicts.length) {
+        span.setAttribute('orders.hold.conflicts', res.conflicts.join(','));
         return reply.code(409).type('application/problem+json').send({
           ...problem(409, 'conflict', 'some seats are not held by this buyer', 'urn:thankful:orders:hold_conflict', req.ctx?.traceId),
-          conflicts,
+          conflicts: res.conflicts,
         });
       }
     } catch (e) {
-      // On Redis failure, fail fast (safer than proceeding)
       span.setAttribute('orders.hold.verify', 'redis_error');
       return reply.code(503).type('application/problem+json').send(
         problem(503, 'service_unavailable', 'Hold verification unavailable', 'urn:thankful:orders:hold_verification_unavailable', req.ctx?.traceId)
