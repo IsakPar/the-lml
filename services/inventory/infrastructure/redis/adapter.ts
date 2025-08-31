@@ -63,7 +63,7 @@ export class RedisSeatLockAdapter {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         const elapsed = performance.now() - start;
-          if (elapsed > 150) {
+        if (elapsed > 150) {
           metrics.seat_lock_redis_timeouts_total.inc();
           throw new Error('redis_timeout_overall');
         }
@@ -120,6 +120,7 @@ export class RedisSeatLockAdapter {
     try {
       const probeKey = keys[0];
       const val = await this.client.get(probeKey as string);
+      // @ts-expect-error node-redis types
       const pttl = await (this.client as any).pTTL(probeKey as string);
       // eslint-disable-next-line no-console
       console.log(JSON.stringify({ event: 'locks.state', key: probeKey, val, pttl }));

@@ -109,18 +109,18 @@ struct SeatmapScreen: View {
     
     private func setupServices() {
         Task {
-            // ✅ CRITICAL FIX: Authenticate FIRST, then create services
-            await app.authenticateForDevelopment()
-            print("[SeatmapScreen] 🔐 Authentication completed")
+            // 🚨 REMOVED: Auto-authentication that was breaking guest UX
+            // Guest users should remain guests until they choose to log in
             
-            // Now create SeatHoldService with authenticated API client
+            // Create SeatHoldService with current API client (works for both guest and authenticated)
             await MainActor.run {
                 seatHoldService = SeatHoldService(apiClient: app.api)
-                print("[SeatmapScreen] 🎫 SeatHoldService created with authenticated API client")
+                print("[SeatmapScreen] 🎫 SeatHoldService created")
             }
             
-            // Finally load seatmap data
+            // Load seatmap data (works for both guest and authenticated users)
             await seatmapService.loadSeatmapData(for: show)
+            print("[SeatmapScreen] ✅ Services setup completed - user remains in original auth state")
         }
     }
     
@@ -222,11 +222,18 @@ struct SeatmapScreen: View {
             
             // Create order via API
             let bodyData = try JSONEncoder().encode(requestBody)
+            // Attach hold token from SeatHoldService for server-side verification
+            var orderHeaders: [String: String] = [
+                "Idempotency-Key": "order_\(UUID().uuidString)"
+            ]
+            if let anyHeld = seatHoldService?.getAllHeldSeats().first?.holdToken {
+                orderHeaders["X-Seat-Hold-Token"] = anyHeld
+            }
             let (responseData, _) = try await app.api.request(
                 path: "/v1/orders",
                 method: "POST",
                 body: bodyData,
-                headers: ["Idempotency-Key": "order_\(UUID().uuidString)"]
+                headers: orderHeaders
             )
             
             let orderResponse = try JSONDecoder().decode(CreateOrderResponse.self, from: responseData)
@@ -301,7 +308,7 @@ struct SeatmapScreen: View {
                         latitude: venueCoords.latitude,
                         longitude: venueCoords.longitude
                     ),
-                    customerEmail: nil, // Could be extracted from order data
+                    customerEmail: orderResponse.customer_email, // ✅ FIXED: Extract email from order
                     paymentMethod: "Card",
                     purchaseDate: formatCurrentDateTime()
                 )

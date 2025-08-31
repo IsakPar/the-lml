@@ -21,11 +21,23 @@ struct LoginView: View {
           Task { await handleAppleSignIn(result: result) }
         })
         .frame(height: 48)
-        Button(action: {}) { Label("Sign in with Google", systemImage: "g.circle") }
-          .buttonStyle(.stageBordered).disabled(true)
-        Button(action: {}) { Label("Continue with Passkey", systemImage: "key.fill") }
-          .buttonStyle(.stageBordered).disabled(true)
-        Text("Google and Passkeys will be enabled once configured.").font(.caption).foregroundColor(.secondary)
+        Button(action: handleGoogleSignIn) { 
+          HStack(spacing: 8) {
+            Image(systemName: "g.circle")
+            Text("Sign in with Google")
+          }
+        }
+        .buttonStyle(.stageBordered)
+        
+        Button(action: handlePasskeySignIn) { 
+          HStack(spacing: 8) {
+            Image(systemName: "key.fill")
+            Text("Continue with Passkey")
+          }
+        }
+        .buttonStyle(.stageBordered)
+        
+        Text("Additional sign-in methods for your convenience.").font(.caption).foregroundColor(.secondary)
 
         Divider().background(StageKit.hairline)
 
@@ -93,6 +105,40 @@ struct LoginView: View {
       
       isLoading = false
     }
+  }
+  
+  // MARK: - 🚨 NEW: Additional Authentication Methods
+  
+  @MainActor
+  private func handleGoogleSignIn() {
+    print("[LoginView] 🔍 Google Sign In tapped")
+    message = nil
+    
+    // TODO: Implement Google Sign In
+    // For now, show a placeholder message
+    message = "Google Sign In coming soon! Please use email/password or Apple ID."
+    
+    // Placeholder implementation:
+    // 1. Configure Google Sign In SDK
+    // 2. Present Google Sign In flow
+    // 3. Handle successful authentication
+    // 4. Update app.isAuthenticated = true
+  }
+  
+  @MainActor 
+  private func handlePasskeySignIn() {
+    print("[LoginView] 🔑 Passkey Sign In tapped")
+    message = nil
+    
+    // TODO: Implement Passkey authentication
+    // For now, show a placeholder message
+    message = "Passkey authentication coming soon! Please use email/password or Apple ID."
+    
+    // Placeholder implementation:
+    // 1. Check passkey availability
+    // 2. Request passkey authentication
+    // 3. Handle successful authentication
+    // 4. Update app.isAuthenticated = true
   }
 }
 

@@ -5,6 +5,7 @@ import { registerRequestContext } from '../apps/api/src/middleware/requestContex
 import { registerProblemHandler } from '../apps/api/src/middleware/problem.js';
 import { registerAuth } from '../apps/api/src/middleware/auth.js';
 import { registerOrdersRoutes } from '../apps/api/src/v1/orders/routes.js';
+import { registerInventoryRoutes } from '../apps/api/src/v1/inventory/routes.js';
 import { registerPaymentsRoutes } from '../apps/api/src/v1/payments/routes.js';
 import { JwtService } from '../apps/api/src/utils/jwt.js';
 import { getDatabase, MigrationRunner } from '@thankful/database';
@@ -22,24 +23,44 @@ describe('Payments API (intent + webhook)', () => {
     registerRequestContext(app as any);
     registerProblemHandler(app as any);
     registerAuth(app as any);
+    await registerInventoryRoutes(app as any);
     await registerOrdersRoutes(app as any);
     await registerPaymentsRoutes(app as any);
     await app.ready();
     server = app.server;
     const jwt = new JwtService();
-    auth = 'Bearer ' + jwt.signAccess({ sub: 'usr_test', userId: 'usr_test', orgId: tenant, role: 'user', permissions: ['orders.write','orders.read','payments.write'] });
+    auth = 'Bearer ' + jwt.signAccess({ sub: 'usr_test', userId: 'usr_test', orgId: tenant, role: 'user', permissions: ['orders.write','orders.read','payments.write','inventory.holds:write'] });
   });
 
   afterAll(async () => { await app.close(); });
 
   it('creates payment intent idempotently and marks order paid via webhook', async () => {
     // Create an order first
+    // Acquire a hold for a dummy seat so order creation can succeed
+    const perfId = '33333333-3333-3333-3333-333333333333';
+    const seatId = 'S1';
+    const db = getDatabase();
+    await db.withTenant(tenant, async (c: any) => {
+      await c.query('DELETE FROM inventory.seat_state WHERE performance_id=$1 AND seat_id=$2', [perfId, seatId]);
+      await c.query("INSERT INTO inventory.seat_state(performance_id, seat_id, state, updated_at) VALUES ($1,$2,'available', NOW())", [perfId, seatId]);
+    });
+    const hold = await supertest(server)
+      .post('/v1/holds')
+      .set('Authorization', auth)
+      .set('X-Org-ID', tenant)
+      .set('Idempotency-Key', 'idem-hold-intent-3333')
+      .send({ performance_id: perfId, seats: [seatId], ttl_seconds: 120 });
+    expect([200,201]).toContain(hold.status);
+    const holdToken = String(hold.body?.hold_token || '');
+    expect(holdToken).toContain(':');
+
     let orderRes = await supertest(server)
       .post('/v1/orders')
       .set('Authorization', auth)
       .set('X-Org-ID', tenant)
-      .set('Idempotency-Key', 'idem-order-1')
-      .send({ currency: 'USD', total_minor: 1000 });
+      .set('Idempotency-Key', 'idem-order-3333-1')
+      .set('X-Seat-Hold-Token', holdToken)
+      .send({ performance_id: perfId, seat_ids: [seatId], customer_email: 'e@example.com', currency: 'USD' });
     expect([200,201]).toContain(orderRes.status);
     let orderId = orderRes.body.order_id as string | undefined;
     if (!orderId) {
@@ -48,7 +69,7 @@ describe('Payments API (intent + webhook)', () => {
         .post('/v1/orders')
         .set('Authorization', auth)
         .set('X-Org-ID', tenant)
-        .set('Idempotency-Key', 'idem-order-2')
+        .set('Idempotency-Key', 'idem-order-3333-2')
         .send({ currency: 'USD', total_minor: 1000 });
       expect([200,201]).toContain(orderRes.status);
       orderId = orderRes.body.order_id as string;

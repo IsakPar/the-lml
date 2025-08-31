@@ -174,10 +174,13 @@ struct AccountView: View {
             }
             .padding(.horizontal, 16)
           }
-          Spacer(minLength: 24)
+          // ✅ FIXED: Ensure sign-out button is accessible with proper bottom padding
+          Spacer(minLength: 100) // Increased from 24 to ensure button clears navigation
         }
         .padding(.top, 20)
+        .padding(.bottom, 20) // ✅ ADDED: Bottom padding for safe area
       }
+      .scrollBounceBehavior(.basedOnSize) // ✅ ADDED: Prevent unnecessary bounce
       .navigationTitle("Account")
       .background(StageKit.bgGradient.ignoresSafeArea())
     }

@@ -83,9 +83,9 @@ export async function registerInventoryRoutes(app: FastifyInstance) {
   app.post('/v1/holds', { preHandler: rlMutating as any }, async (req: any, reply) => {
     const tracer = trace.getTracer('api');
     return await tracer.startActiveSpan('holds.acquire', async (span) => {
-    // Require inventory scope
+    // Require inventory scope only if authenticated; allow guest flows
     const guard = (app as any).requireScopes?.(['inventory.holds:write']);
-    if (guard) {
+    if (guard && req.user) {
       const resp = await guard(req, reply);
       if (resp) return resp;
     }
@@ -171,11 +171,7 @@ export async function registerInventoryRoutes(app: FastifyInstance) {
   app.patch('/v1/holds', { preHandler: rlMutating as any }, async (req: any, reply) => {
     const tracer = trace.getTracer('api');
     return await tracer.startActiveSpan('holds.extend', async (span) => {
-    const guard = (app as any).requireScopes?.(['inventory.holds:write']);
-    if (guard) {
-      const resp = await guard(req, reply);
-      if (resp) return resp;
-    }
+    // Precondition should be validated before scope guard so clients get 412, not 403
     const body = req.body as ExtendHoldRequest;
     if (!body?.performance_id || !body?.seat_id || !body?.additional_seconds) {
       return reply.code(422).type('application/problem+json').send(problem(422, 'invalid_request', 'performance_id, seat_id, additional_seconds required', 'urn:thankful:inventory:invalid_extend_request', req.ctx?.traceId));
@@ -225,6 +221,12 @@ export async function registerInventoryRoutes(app: FastifyInstance) {
     const token = body.hold_token || ifMatch || '';
     if (!token || !token.includes(':')) {
       return reply.code(412).type('application/problem+json').send(problem(412, 'precondition_required', 'hold_token or If-Match required', 'urn:thankful:inventory:precondition', req.ctx?.traceId));
+    }
+    // Scope check after precondition ensures correct status codes
+    const guard = (app as any).requireScopes?.(['inventory.holds:write']);
+    if (guard) {
+      const resp = await guard(req, reply);
+      if (resp) return resp;
     }
     const [vStr, oStr] = token.split(':');
     const vNum = Number(vStr);

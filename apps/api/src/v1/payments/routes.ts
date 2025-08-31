@@ -162,7 +162,7 @@ export async function registerPaymentsRoutes(app: FastifyInstance) {
         try {
           // Find the order by PaymentIntent ID
           const orderRes = await client.query<{ id: string; status: string }>(
-            'SELECT id, status FROM orders WHERE payment_intent_id = $1',
+            'SELECT id, status FROM orders.orders WHERE payment_intent_id = $1',
             [piId]
           );
           
@@ -198,6 +198,26 @@ export async function registerPaymentsRoutes(app: FastifyInstance) {
 
           console.log(`[Webhook] Marked ${seatUpdateResult.rowCount} seats as SOLD for order ${orderId}`);
 
+          // Issue tickets for sold seats (idempotent per seat)
+          const seatsRes = await client.query<{ performance_id: string; seat_id: string }>(
+            `SELECT performance_id, seat_id FROM inventory.seat_state WHERE order_id = $1 AND state = 'sold'`,
+            [orderId]
+          );
+          let issued = 0;
+          for (const s of seatsRes.rows) {
+            const jti = `tkt_${crypto.randomBytes(12).toString('hex')}`;
+            const insertRes = await client.query(
+              `INSERT INTO ticketing.tickets (order_id, performance_id, seat_id, jti, status)
+               SELECT $1, $2, $3, $4, 'issued'
+               WHERE NOT EXISTS (
+                 SELECT 1 FROM ticketing.tickets t WHERE t.order_id = $1 AND t.seat_id = $3
+               )`,
+              [orderId, s.performance_id, s.seat_id, jti]
+            );
+            issued += (insertRes as any).rowCount || 0;
+          }
+          console.log(`[Webhook] Issued ${issued} tickets for order ${orderId}`);
+
           // Insert into stripe_events for audit trail
           await client.query(
             'INSERT INTO stripe_events (event_id, type, payment_intent_id, processed) VALUES ($1, $2, $3, $4)',
@@ -206,6 +226,8 @@ export async function registerPaymentsRoutes(app: FastifyInstance) {
 
           await client.query('COMMIT');
           console.log(`[Webhook] Successfully confirmed order ${orderId} and marked seats as SOLD`);
+          span.setAttribute('payments.orderId', orderId);
+          span.setAttribute('payments.issued.count', issued);
           
         } catch (error) {
           await client.query('ROLLBACK');

@@ -105,7 +105,7 @@ struct EmailInputField: View {
                 .onTapGesture {
                     isFieldFocused = true
                 }
-                .onChange(of: email) { newValue in
+                .onChange(of: email) { _, newValue in
                     validateEmail(newValue)
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in

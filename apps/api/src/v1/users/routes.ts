@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { problem } from '../../lib/problem.js';
+import { problem } from '../../middleware/problem.js';
 
 export default async function usersRoutes(fastify: FastifyInstance) {
   

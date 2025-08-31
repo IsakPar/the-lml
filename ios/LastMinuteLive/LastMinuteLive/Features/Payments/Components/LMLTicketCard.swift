@@ -168,6 +168,13 @@ struct CleanTicketData {
     let qrData: String
     let orderReference: String // "B55C7A...4E65"
     
+    // 🚨 NEW: Additional properties needed for modal and download functionality
+    let orderId: String
+    let totalAmount: Int
+    let currency: String
+    let seatCount: Int
+    let customerEmail: String
+    
     // Convert from PaymentSuccessData
     init(from successData: PaymentSuccessData, seatNodes: [SeatNode]? = nil) {
         self.eventName = successData.performanceName
@@ -185,6 +192,13 @@ struct CleanTicketData {
         print("[CleanTicketData] - QR Data: \(self.qrData)")
         print("[CleanTicketData] - Length: \(self.qrData.count) characters")
         self.orderReference = DataFormatters.formatOrderReference(successData.orderId)
+        
+        // 🚨 NEW: Set additional properties for modal and download functionality
+        self.orderId = successData.orderId
+        self.totalAmount = successData.totalAmount
+        self.currency = successData.currency
+        self.seatCount = successData.seatIds.count
+        self.customerEmail = successData.customerEmail ?? ""
     }
 }
 
@@ -235,7 +249,7 @@ struct LMLTicketCard_Previews: PreviewProvider {
                                 performanceDate: "December 25, 2025 at 2:30 PM",
                                 venueName: "Lyceum Theatre",
                                 venueCoordinates: CLLocationCoordinate2D(latitude: 51.5115, longitude: -0.1203),
-                                customerEmail: nil,
+                                customerEmail: "guest@example.com", // ✅ FIXED: Added email
                                 paymentMethod: "Apple Pay",
                                 purchaseDate: "Dec 20, 2025 at 11:30 AM"
                             )

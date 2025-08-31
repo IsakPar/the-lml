@@ -4,6 +4,7 @@ import { registerRequestContext } from '../apps/api/src/middleware/requestContex
 import { registerProblemHandler } from '../apps/api/src/middleware/problem.js';
 import { registerAuth } from '../apps/api/src/middleware/auth.js';
 import { registerOrdersRoutes } from '../apps/api/src/v1/orders/routes.js';
+import { registerInventoryRoutes } from '../apps/api/src/v1/inventory/routes.js';
 import supertest from 'supertest';
 import { getDatabase, MigrationRunner } from '@thankful/database';
 import { JwtService } from '../apps/api/src/utils/jwt.js';
@@ -20,6 +21,7 @@ describe('Orders API (idempotency + tenant)', () => {
     registerRequestContext(app as any);
     registerProblemHandler(app as any);
     registerAuth(app as any);
+    await registerInventoryRoutes(app as any);
     await registerOrdersRoutes(app as any);
     await app.ready();
     server = app.server;
@@ -29,17 +31,36 @@ describe('Orders API (idempotency + tenant)', () => {
     await app.close();
   });
 
-  it('creates order idempotently', async () => {
+  it('creates order idempotently (with hold + email)', async () => {
     const jwt = new JwtService();
-    const access = jwt.signAccess({ sub: 'usr_test', userId: 'usr_test', orgId: '00000000-0000-0000-0000-000000000001', role: 'user', permissions: ['orders.write'] });
+    const access = jwt.signAccess({ sub: 'usr_test', userId: 'usr_test', orgId: '00000000-0000-0000-0000-000000000001', role: 'user', permissions: ['orders.write','inventory.holds:write'] });
     const token = 'Bearer ' + access;
-    const uniqueTotal = Math.floor(Date.now() % 1000000);
-    const body = { currency: 'USD', total_minor: uniqueTotal };
+    const tenant = '00000000-0000-0000-0000-000000000001';
+    const perfId = '11111111-1111-1111-1111-111111111111';
+    const seatId = 'S1';
+    // Ensure seat exists as available in DB
+    const db = getDatabase();
+    await db.withTenant(tenant, async (c: any) => {
+      await c.query('DELETE FROM inventory.seat_state WHERE performance_id=$1 AND seat_id=$2', [perfId, seatId]);
+      await c.query("INSERT INTO inventory.seat_state(performance_id, seat_id, state, updated_at) VALUES ($1,$2,'available', NOW())", [perfId, seatId]);
+    });
+    // Acquire a hold to satisfy order precondition
+    const hold = await supertest(server)
+      .post('/v1/holds')
+      .set('Authorization', token)
+      .set('X-Org-ID', tenant)
+      .set('Idempotency-Key', 'idem-hold-order')
+      .send({ performance_id: perfId, seats: [seatId], ttl_seconds: 120 });
+    expect([200,201]).toContain(hold.status);
+    const holdToken = String(hold.body?.hold_token || '');
+    expect(holdToken).toContain(':');
+    const body = { performance_id: perfId, seat_ids: [seatId], customer_email: 'e@example.com', currency: 'USD' };
     const req = () => supertest(server)
       .post('/v1/orders')
       .set('Authorization', token)
-      .set('X-Org-ID', '00000000-0000-0000-0000-000000000001')
-      .set('Idempotency-Key', 'idem-test-12345678')
+      .set('X-Org-ID', tenant)
+      .set('Idempotency-Key', 'idem-order-11111111')
+      .set('X-Seat-Hold-Token', holdToken)
       .send(body);
     const a = await req();
     if (![200,201].includes(a.status)) {
@@ -54,6 +75,41 @@ describe('Orders API (idempotency + tenant)', () => {
     } else {
       expect(b.body).toEqual(expect.objectContaining({ cached: expect.any(Boolean) }));
     }
+  });
+
+  it('returns 409 when seats are not held by this buyer', async () => {
+    const jwt = new JwtService();
+    const access = jwt.signAccess({ sub: 'usr_test', userId: 'usr_test', orgId: '00000000-0000-0000-0000-000000000001', role: 'user', permissions: ['orders.write','inventory.holds:write'] });
+    const token = 'Bearer ' + access;
+    const tenant = '00000000-0000-0000-0000-000000000001';
+    const perfId = '22222222-2222-2222-2222-222222222222';
+    const seatId = 'A1';
+    // Ensure seat exists as available in DB
+    const db = getDatabase();
+    await db.withTenant(tenant, async (c: any) => {
+      await c.query('DELETE FROM inventory.seat_state WHERE performance_id=$1 AND seat_id=$2', [perfId, seatId]);
+      await c.query("INSERT INTO inventory.seat_state(performance_id, seat_id, state, updated_at) VALUES ($1,$2,'available', NOW())", [perfId, seatId]);
+    });
+    // Acquire a hold with a different requestId (simulating another buyer)
+    const holdRes = await supertest(server)
+      .post('/v1/holds')
+      .set('Authorization', token)
+      .set('X-Org-ID', tenant)
+      .set('Idempotency-Key', 'idem-hold-1')
+      .send({ performance_id: perfId, seats: [seatId], ttl_seconds: 120 });
+    expect([200,201]).toContain(holdRes.status);
+    const foreignHoldToken = String(holdRes.body?.hold_token || '');
+    expect(foreignHoldToken).toContain(':');
+
+    // Now attempt to create an order with same seat but using a different (invalid) token
+    const order = await supertest(server)
+      .post('/v1/orders')
+      .set('X-Org-ID', tenant)
+      .set('Idempotency-Key', 'idem-order-409')
+      // Missing or wrong X-Seat-Hold-Token should lead to 412/409; send a mismatched token
+      .set('X-Seat-Hold-Token', '0:someone-else')
+      .send({ performance_id: perfId, seat_ids: [seatId], customer_email: 'e@example.com', currency: 'USD' });
+    expect([409,412]).toContain(order.status);
   });
 });
 
